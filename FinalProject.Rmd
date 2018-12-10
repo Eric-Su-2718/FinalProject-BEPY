@@ -1,19 +1,24 @@
 ---
 title: "Final Project"
 author: "Yiwei Gong, Brian Cozzi, Eric Su, Peter Kim"
-date: "r Sys.Date()"
-output: html_document
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
+
+
 ```{r Setup, include=FALSE}
+library(dplyr)
 library(jsonlite)
 library(tidyverse)
 
 ```
 
+# Preparation  
 
-
-### Get Red Light and Traffic Data
+## Get Red Light and Traffic Data  
 ```{r Red Lights}
 example = fromJSON("https://data.cityofchicago.org/resource/twfh-866z.json")
 
@@ -43,15 +48,170 @@ Traffic = Traffic %>% mutate(last_update = as.POSIXct(last_update, format = "%Y-
 
 
 
-### Get Darksky Weather Data
-```{r}
+## Get Darksky Weather Data  
 
+Intuitively, the traffic situation could be closely related to the weather on that day, which may further influence the number of red light violations. In this section we used information from Darksky to get all the weather reports from 2014-07-01(starting date of red violation data) to 2018-11-25(newest update). The main function get_darksky_weather uses the API key and date, combined with the base_url to get the url for API call. After a json file is obtained from this url, a dataframe about hourly weather and a list of daily weather are created, using  function get_weather_df_daily and get_weather_df_hourly respectively. The function get_weather_hourly uses the list from the json file to build a dataframe with temperature, apparent temperature, precipitation type, visibility uv index and cloud.The function get_weather_daily uses the same list to store information about the weather, temperature (high and low), apparent temperature(high and low), visibility, cloud and uv index. These variables could be of interest for further modelling. For example, traffic is likely to get crowded in a sunny day near beaches according to a local's experience. We then map a vector of dates with the main function, getting a list with size 1609 (the number of days). Hourly information and daily information are obtained accordingly from the main list. (Two API keys are used because of the call limit.)  
+
+
+```{r darksky}
+### Powered by Darksky
+
+# Function
+# extract weather information from a given list
+get_weather_df_hourly = function(ls){
+  
+  hourly = ls$hourly
+  
+  hourly_data = hourly$data
+  
+  dataframe = data_frame(
+    time = as.POSIXct(hourly_data$time, origin="1970-01-01"),
+    temperature = hourly_data$temperature,
+    apparent_temperature = hourly_data$apparentTemperature,
+    precip_intensity = hourly_data$precipIntensity,
+    precip_type = ifelse(precip_intensity != 0, hourly_data$precipType, NA),
+    visibility = hourly_data$visibility,
+    uvIndex = hourly_data$uvIndex,
+    cloud = hourly_data$cloudCover
+  )
+  
+  return(dataframe)
+}
+
+get_weather_daily = function(ls){
+  
+  daily = ls$daily$data
+  
+  preint = daily$precip_intensity
+  
+  list = list( ## not sure if dataframe or list is better, one row dataframe looks strange so put a list here
+    time = as.POSIXct(daily$time, origin = "1970-01-01"),
+    summary = daily$summary,
+    icon = daily$icon,
+    sunrise = as.POSIXct(daily$sunriseTime, origin = "1970-01-01"),
+    sunset = as.POSIXct(daily$sunsetTime, origin = "1970-01-01"),
+    precip_intensity = daily$precipIntensity,
+    precip_type = ifelse(preint!=0, daily$precipType, NA),
+    high_temperature = daily$temperatureHigh,
+    apparent_high = daily$apparentTemperatureHigh, # is time necessary?
+    low_temperature = daily$temperatureLow,
+    apparent_low = daily$apparentTemperatureLow,
+    visibility = daily$visibility,
+    cloud = daily$cloudCover,
+    uv_Index = daily$uvIndex
+  )
+  
+  return(list)
+}
+
+# get weather from api, location and date
+get_darksky_weather = function(api, date){
+  
+  base_url = "https://api.darksky.net/forecast"
+  
+  lat = 41.8781
+  
+  lon = -87.6298
+  
+  location_time = paste(lat, lon, date, sep = ",")
+  
+  url = paste(base_url, api, location_time, sep = "/")
+  
+  json_file = getURL(url)
+  
+  weather_ls = fromJSON(json_file)
+
+  weather_df_hourly = weather_ls %>%
+    get_weather_df_hourly()
+  
+  weather_df_daily = weather_ls %>%
+    get_weather_daily()
+  
+  sunrise = weather_df_daily$sunrise
+  
+  sunset = weather_df_daily$sunset
+  
+  weather_df_hourly = weather_df_hourly %>%
+    mutate(
+      daytime = ifelse(sunrise <= time & time <= sunset, 1, 0))
+  
+  return(list(weather_df_hourly, weather_df_daily))
+}
+
+# get a sequence of dates from 2014-07-01 to 2018-11-25
+get_date = function(x){
+  
+  x = as.POSIXct(x, origin = "1970-01-01")
+  
+  x = paste0(x, "T00:00:00")
+  
+  return(x)
+}
+
+
+# Timing
+beginning_time = "2014-07-01T00:00:00"
+
+end_time = "2018-11-25T00:00:00"
+
+space = 1
+
+beginning_timestamp = as.numeric(as.POSIXct(beginning_time))
+
+end_timestamp = as.numeric(as.POSIXct(end_time))
+
+time_range = seq(beginning_timestamp, end_timestamp, by = 24 * 60 * 60)
+
+date_range = map(time_range, get_date)
+
+# get all days data
+
+api1 = "7231a45cac6fe407c4d4f6269f560d92"
+api2 = "29e4dd8948446db4c8c099b2c6b63d49"
+
+lat = 41.8781
+lon = -87.6298
+date = "2014-07-01T00:00:00"
+
+
+################ trial remove later
+
+api = "7231a45cac6fe407c4d4f6269f560d92"
+
+b = map(date_range[1:10], function(x)
+  get_darksky_weather(api = api1, date = x))
+
+hourly = map(b, function(x) x[[1]])
+
+daily = map(b, function(x) x[[2]])
+
+a = map(date_range[11:15], function(x)
+  get_darksky_weather(api = api1, date = x))
+
+c = c(hourly, map(a, function(x) x[[1]]))
+
+################
+
+n = length(date_range)
+
+#weather_1000 = map(date_range[1:900], function(x)
+  #get_darksky_weather(api = api1, lat = lat, lon = lon, date = x))
+# hourly_1000 = map(weather_1000, function(x) x[[1]])
+# daily_1000 = map(weather_1000, function(x) x[[2]])
+
+#weather_after = map(date_range[900:n], function(x)
+  #get_darksky_weather(api= api2, lat = lat, lon = lon, date = x))
+#hourly_after = map(weather_after, function(x) x[[1]])
+#daily_after = map(weather_after, function(x) x[[2]])
+
+#weather_info_hourly = c(hourly_1000, hourly_after)
+#weather_info_daily = c(daily_1000, daily_after)
 
 ```
 
 
 
-### Generate a Predictive model by intersection
+# Generate a Predictive model by intersection  
 ```{r}
 
 
@@ -59,7 +219,7 @@ Traffic = Traffic %>% mutate(last_update = as.POSIXct(last_update, format = "%Y-
 ```
 
 
-### Shiny App
+# Shiny App  
 ```{r Shiny App}
 
 
