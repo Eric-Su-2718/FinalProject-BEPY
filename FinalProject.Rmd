@@ -7,9 +7,57 @@ output:
   html_document: default
 ---
 
-```{r, include = FALSE}
-#libraries
+
+
+```{r Setup, include=FALSE}
 library(dplyr)
 library(jsonlite)
+library(tidyverse)
+
 ```
+
+
+
+### Get Red Light and Traffic Data
+```{r Red Lights}
+      
+
+
+```
+
+
+```{r Traffic Data}
+
+
+```
+
+
+
+
+### Get Darksky Weather Data
+```{r}
+
+
+
+```
+
+
+
+### Generate a Predictive model by intersection
+```{r}
+
+
+
+```
+
+
+### Shiny App
+```{r Shiny App}
+
+
+```
+
+
+
+
 
