@@ -15,13 +15,27 @@ library(tidyverse)
 
 ### Get Red Light and Traffic Data
 ```{r Red Lights}
-      
+example = fromJSON("https://data.cityofchicago.org/resource/twfh-866z.json")
 
 
 ```
 
 
 ```{r Traffic Data}
+
+offsets = seq(0, 19000000, by = 50000)
+get.traffic = function(offset){
+  base.url = paste0("https://data.cityofchicago.org/resource/chicago-traffic-tracker-historical-congestion-estimates-by-segment.json?$limit=50000&$offset=",
+                    offset%>% as.integer())
+  return(fromJSON(base.url))
+}
+
+Traffic = map_df(offsets, get.traffic)
+
+Traffic = Traffic %>% mutate(last_update = as.POSIXct(last_update, format = "%Y-%m-%dT%H:%M:%S"),
+                             bus_count = as.integer(bus_count),
+                             msg_count = as.integer(msg_count),
+                             traffic = as.integer(traffic))
 
 
 ```
