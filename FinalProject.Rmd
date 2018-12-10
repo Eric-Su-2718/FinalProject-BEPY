@@ -1,11 +1,15 @@
 ---
 title: "Final Project"
 author: "Yiwei Gong, Brian Cozzi, Eric Su, Peter Kim"
-date: "r Sys.Date()"
-output: html_document
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
-```{r}
-
+```{r, include = FALSE}
+#libraries
+library(dplyr)
+library(jsonlite)
 ```
 
