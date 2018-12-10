@@ -12,17 +12,58 @@ output:
 ```{r Setup, include=FALSE}
 library(dplyr)
 library(jsonlite)
+library(janitor)
 library(tidyverse)
-
 ```
 
 
 
 ### Get Red Light and Traffic Data
 ```{r Red Lights}
-      
+htmlViolation = paste("https://data.cityofchicago.org/resource/twfh-866z.json?violation_date=",
+"2014-07-02T00:00:00.000"
+)
 
+first.date = as.Date("2014-07-01")
+last.date = Sys.Date()
 
+json.files = seq.Date(first.date, last.date, "day")
+
+make.df = function(list){
+  
+  df = data_frame(
+    address = list$address,
+    camera_id = list$camera_id,
+    intersection = list$intersection,
+    violation_date = list$violation_date,
+    violations = list$violations,
+    latitutde = list$latitude,
+    longitude = list$longitude,
+    x_coordinate = list$x_coordinate,
+    y_coordinate = list$y_coordinate
+  )
+    
+  return(df)
+}
+
+get.redlight.data = function(date){
+  day = format(date, "%d")
+  month = format(date, "%m")
+  year = format(date, "%Y")
+  data = fromJSON(paste0(
+    "https://data.cityofchicago.org/resource/twfh-866z.json?violation_date=",
+    year,
+    "-", 
+    month, 
+    "-", 
+    day,
+    "T00:00:00.000")
+    )
+  return(data)
+}
+
+test = map(json.files, get.redlight.data)
+test.df = ldply(test, make.df)
 ```
 
 
