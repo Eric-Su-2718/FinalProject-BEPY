@@ -14,6 +14,7 @@ library(dplyr)
 library(jsonlite)
 library(janitor)
 library(tidyverse)
+library(plyr)
 ```
 
 # Preparation  
@@ -25,7 +26,7 @@ htmlViolation = paste("https://data.cityofchicago.org/resource/twfh-866z.json?vi
 )
 
 first.date = as.Date("2014-07-01")
-last.date = Sys.Date()
+last.date = Sys.Date() -14
 
 json.files = seq.Date(first.date, last.date, "day")
 
@@ -63,7 +64,7 @@ get.redlight.data = function(date){
 }
 
 test = map(json.files, get.redlight.data)
-test.df = ldply(test, make.df)
+test.df = ldply(test, .fun = make.df)
 ```
 
 
