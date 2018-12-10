@@ -5,7 +5,53 @@ date: "r Sys.Date()"
 output: html_document
 ---
 
-```{r}
+```{r Setup, include=FALSE}
+library(jsonlite)
+library(tidyverse)
 
 ```
+
+
+
+### Get Red Light and Traffic Data
+```{r Red Lights}
+      
+
+
+```
+
+
+```{r Traffic Data}
+
+
+```
+
+
+
+
+### Get Darksky Weather Data
+```{r}
+
+
+```
+
+
+
+### Generate a Predictive model by intersection
+```{r}
+
+
+
+```
+
+
+### Shiny App
+```{r Shiny App}
+
+
+```
+
+
+
+
 
