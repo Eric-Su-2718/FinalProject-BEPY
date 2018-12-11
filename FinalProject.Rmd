@@ -237,13 +237,14 @@ save(weather_info_hourly, file = "weather_info_hourly.Rds")
 ```
 
 ```{r, data cleaning}
+library(lubridate)
 redlight_data = redlight_data %>% 
   transmute(date         = as.POSIXct(violation_date, format = "%Y-%m-%dT%H:%M:%S") %>% ymd(),
             address      = factor(address),
             camera_id    = factor(camera_id),
             intersection = factor(intersection),
             violations   = as.numeric(violations),
-            latitutde    = as.numeric(latitutde),
+            latitude     = as.numeric(latitutde),
             longitude    = as.numeric(longitude),
             x_coordinate = as.numeric(x_coordinate),
             y_coordinate = as.numeric(y_coordinate)) %>%
@@ -252,7 +253,10 @@ redlight_data = redlight_data %>%
 
 
 Traffic = Traffic %>%
-  transmute(date       = last_update %>% ymd(),
+  distinct() %>%
+  transmute(date       = as.POSIXct(last_update %>% 
+                                      as.character(), 
+                                    format = "%Y-%m-%d") %>% ymd(),
             segment_id = factor(segment_id),
             bus_count  = bus_count,
             msg_count  = msg_count,
@@ -262,7 +266,6 @@ Traffic = Traffic %>%
             latitude   = (start_lat + end_lat) / 2,
             longitude  = (start_lon + end_lon) / 2,
             length     = as.numeric(length)) %>% 
-  distinct() %>%
   na.omit()
 
 haversine_dist = function(lat1, long1, lat2, long2){
@@ -274,15 +277,22 @@ haversine_dist = function(lat1, long1, lat2, long2){
 }
 
 nearest = function(lat, long, locations){
-  distances = pmap(locations, function(latitude, longitude)
+  distances = pmap(locations %>% select(latitude, longitude),
+                   function(latitude, longitude)
     {haversine_dist(lat, long, latitude, longitude)})
-  return(min(unlist(distances)))
+  return(locations$segment_id[which.min(unlist(distances))])
 }
+distinct_camera = redlight_data %>% select(latitude, longitude) %>% distinct()
+distinct_segment = Traffic %>% select(segment_id, latitude, longitude) %>% distinct()
 
-min_distances = pmap(redlight_data[, c("latitude","longitude")],
+min_distances = pmap(distinct_camera,
                       function(latitude, longitude)
-                        {nearest(latitude, longitude, Traffic[, c("latitude","longitude")])}) %>% 
+                        {nearest(latitude, longitude, distinct_segment)}) %>% 
                  unlist()
+
+#not done, don't run the code below
+a = left_join(redlight_data, data.frame(min_distances, distinct_camera))
+b = left_join(a, Traffic, by = c("min_distances" = "segment_id", "date"))
 ```
 
 
