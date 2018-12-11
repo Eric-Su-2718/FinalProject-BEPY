@@ -276,8 +276,8 @@ redlight_data = redlight_data %>%
   na.omit()
 
 
-Traffic = Traffic %>%
-  distinct() %>%
+
+Traffic_test = Traffic %>%
   transmute(date       = as.POSIXct(last_update %>% 
                                       as.character(), 
                                     format = "%Y-%m-%d") %>% ymd(),
@@ -291,6 +291,17 @@ Traffic = Traffic %>%
             longitude  = (start_lon + end_lon) / 2,
             length     = as.numeric(length)) %>% 
   na.omit()
+
+Traffic_test2 = Traffic_test %>%
+  group_by(segment_id, date) %>%
+  dplyr::summarise(bus_count = median(bus_count, na.rm = T),
+                   msg_count = median(msg_count, na.rm = T),
+                   traffic   = median(traffic, na.rm = T))
+Traffic_test3 = Traffic_test %>%
+  select(-bus_count, -msg_count, -traffic) %>%
+  distinct()
+
+Traffic_test4 = left_join(Traffic_test2, Traffic_test3)
 
 haversine_dist = function(lat1, long1, lat2, long2){
   lat1  = lat1  * 0.0174532925
@@ -307,7 +318,7 @@ nearest = function(lat, long, locations){
   return(locations$segment_id[which.min(unlist(distances))])
 }
 distinct_camera = redlight_data %>% select(latitude, longitude) %>% distinct()
-distinct_segment = Traffic %>% select(segment_id, latitude, longitude) %>% distinct()
+distinct_segment = Traffic_test %>% select(segment_id, latitude, longitude) %>% distinct()
 
 min_distances = pmap(distinct_camera,
                       function(latitude, longitude)
@@ -316,7 +327,9 @@ min_distances = pmap(distinct_camera,
 
 #not done, don't run the code below
 a = left_join(redlight_data, data.frame(min_distances, distinct_camera))
-b = left_join(a, Traffic, by = c("min_distances" = "segment_id", "date"))
+b = left_join(a, Traffic_test, by = c("min_distances" = "segment_id", "date"))
+
+
 ```
 
 
