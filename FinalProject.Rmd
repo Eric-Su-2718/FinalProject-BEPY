@@ -12,22 +12,66 @@ output:
 ```{r Setup, include=FALSE}
 library(dplyr)
 library(jsonlite)
+library(janitor)
 library(tidyverse)
-
+library(plyr)
+library(RCurl)
 ```
 
 # Preparation  
 
 ## Get Red Light and Traffic Data  
 ```{r Red Lights}
-example = fromJSON("https://data.cityofchicago.org/resource/twfh-866z.json")
+htmlViolation = paste("https://data.cityofchicago.org/resource/twfh-866z.json?violation_date=",
+"2014-07-02T00:00:00.000"
+)
 
+first.date = as.Date("2014-07-01")
+last.date = Sys.Date() -14
 
+json.files = seq.Date(first.date, last.date, "day")
+
+make.df = function(list){
+  
+  df = data_frame(
+    address = list$address,
+    camera_id = list$camera_id,
+    intersection = list$intersection,
+    violation_date = list$violation_date,
+    violations = list$violations,
+    latitutde = list$latitude,
+    longitude = list$longitude,
+    x_coordinate = list$x_coordinate,
+    y_coordinate = list$y_coordinate
+  )
+    
+  return(df)
+}
+
+get.redlight.data = function(date){
+  day = format(date, "%d")
+  month = format(date, "%m")
+  year = format(date, "%Y")
+  data = fromJSON(paste0(
+    "https://data.cityofchicago.org/resource/twfh-866z.json?violation_date=",
+    year,
+    "-", 
+    month, 
+    "-", 
+    day,
+    "T00:00:00.000")
+    )
+  return(data)
+}
+
+redlight_data = map(json.files, get.redlight.data) %>%
+  ldply(.fun = make.df)
+
+save(redlight_data, file = "red_light_test.Rds")
 ```
 
 
 ```{r Traffic Data}
-
 offsets = seq(0, 19000000, by = 50000)
 get.traffic = function(offset){
   base.url = paste0("https://data.cityofchicago.org/resource/chicago-traffic-tracker-historical-congestion-estimates-by-segment.json?$limit=50000&$offset=",
@@ -54,8 +98,12 @@ Segments = Segments %>%
 Traffic = Traffic %>% mutate(last_update = as.POSIXct(last_update, format = "%Y-%m-%dT%H:%M:%S"),
                              bus_count = as.integer(bus_count),
                              msg_count = as.integer(msg_count),
-                             traffic = as.integer(traffic)) 
-Traffic1 = Traffic %>% inner_join(., Segments, by = c("segment_id" = "segmentid"))
+                             traffic = as.integer(traffic))
+
+Traffic = Traffic %>% inner_join(., Segments, by = c("segment_id" = "segmentid"))
+
+
+save(Traffic, file = "traffic.Rds")
 
 ```
 
@@ -79,7 +127,7 @@ get_weather_df_hourly = function(ls){
   hourly_data = hourly$data
   
   dataframe = data_frame(
-    time = as.POSIXct(hourly_data$time, origin="1970-01-01"),
+    time = as.POSIXct(hourly_data$time, origin="1970-01-01", tz = "America/Chicago"),
     temperature = hourly_data$temperature,
     apparent_temperature = hourly_data$apparentTemperature,
     precip_intensity = hourly_data$precipIntensity,
@@ -99,15 +147,15 @@ get_weather_daily = function(ls){
   preint = daily$precip_intensity
   
   list = list( ## not sure if dataframe or list is better, one row dataframe looks strange so put a list here
-    time = as.POSIXct(daily$time, origin = "1970-01-01"),
+    time = as.POSIXct(daily$time, origin = "1970-01-01", tz="America/Chicago"),
     summary = daily$summary,
     icon = daily$icon,
-    sunrise = as.POSIXct(daily$sunriseTime, origin = "1970-01-01"),
-    sunset = as.POSIXct(daily$sunsetTime, origin = "1970-01-01"),
+    sunrise = as.POSIXct(daily$sunriseTime, origin = "1970-01-01", tz="America/Chicago"),
+    sunset = as.POSIXct(daily$sunsetTime, origin = "1970-01-01", tz="America/Chicago"),
     precip_intensity = daily$precipIntensity,
     precip_type = ifelse(preint!=0, daily$precipType, NA),
     high_temperature = daily$temperatureHigh,
-    apparent_high = daily$apparentTemperatureHigh, # is time necessary?
+    apparent_high = daily$apparentTemperatureHigh,
     low_temperature = daily$temperatureLow,
     apparent_low = daily$apparentTemperatureLow,
     visibility = daily$visibility,
@@ -152,31 +200,16 @@ get_darksky_weather = function(api, date){
   return(list(weather_df_hourly, weather_df_daily))
 }
 
-# get a sequence of dates from 2014-07-01 to 2018-11-25
-get_date = function(x){
-  
-  x = as.POSIXct(x, origin = "1970-01-01")
-  
-  x = paste0(x, "T00:00:00")
-  
-  return(x)
-}
-
-
 # Timing
-beginning_time = "2014-07-01T00:00:00"
 
-end_time = "2018-11-25T00:00:00"
+beginning_date = as.Date("2014-07-01")
 
-space = 1
+end_date = Sys.Date() - 14
 
-beginning_timestamp = as.numeric(as.POSIXct(beginning_time))
+date_range = seq(beginning_date, end_date, by = 1)
 
-end_timestamp = as.numeric(as.POSIXct(end_time))
-
-time_range = seq(beginning_timestamp, end_timestamp, by = 24 * 60 * 60)
-
-date_range = map(time_range, get_date)
+date_range = paste0(date_range, "T00:00:00") %>%
+  as.list()
 
 # get all days data
 
@@ -185,44 +218,31 @@ api2 = "29e4dd8948446db4c8c099b2c6b63d49"
 
 lat = 41.8781
 lon = -87.6298
-date = "2014-07-01T00:00:00"
-
-
-################ trial remove later
-
-api = "7231a45cac6fe407c4d4f6269f560d92"
-
-b = map(date_range[1:10], function(x)
-  get_darksky_weather(api = api1, date = x))
-
-hourly = map(b, function(x) x[[1]])
-
-daily = map(b, function(x) x[[2]])
-
-a = map(date_range[11:15], function(x)
-  get_darksky_weather(api = api1, date = x))
-
-c = c(hourly, map(a, function(x) x[[1]]))
-
-################
 
 n = length(date_range)
 
-#weather_1000 = map(date_range[1:900], function(x)
-  #get_darksky_weather(api = api1, lat = lat, lon = lon, date = x))
-# hourly_1000 = map(weather_1000, function(x) x[[1]])
-# daily_1000 = map(weather_1000, function(x) x[[2]])
+weather_900 = map(date_range[1:900], function(x)
+  get_darksky_weather(api = api1, date = x))
+hourly_900 = map(weather_900, function(x) x[[1]])
+daily_900 = map(weather_900, function(x) x[[2]])
 
-#weather_after = map(date_range[900:n], function(x)
-  #get_darksky_weather(api= api2, lat = lat, lon = lon, date = x))
-#hourly_after = map(weather_after, function(x) x[[1]])
-#daily_after = map(weather_after, function(x) x[[2]])
+weather_after = map(date_range[900:n], function(x)
+ get_darksky_weather(api= api2, date = x))
+hourly_after = map(weather_after, function(x) x[[1]])
+daily_after = map(weather_after, function(x) x[[2]])
 
-#weather_info_hourly = c(hourly_1000, hourly_after)
-#weather_info_daily = c(daily_1000, daily_after)
+weather_info_hourly = c(hourly_900, hourly_after)
+weather_info_daily = c(daily_900, daily_after)
+
+save(weather_info_daily, file = "weather_info_daily.Rds")
+save(weather_info_hourly, file = "weather_info_hourly.Rds")
 
 ```
 
+```{r, data cleaning}
+redlight_data = redlight_data %>% na.omit()
+Traffic = Traffic %>% distinct()
+```
 
 
 # Generate a Predictive model by intersection  
