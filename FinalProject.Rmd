@@ -37,11 +37,25 @@ get.traffic = function(offset){
 
 Traffic = map_df(offsets, get.traffic)
 
+Segments = fromJSON("https://data.cityofchicago.org/resource/8v9j-bter.json?$limit=5000") %>% 
+  unique() 
+  
+Segments = Segments %>%
+  mutate(start_lon = as.numeric(start_lon),
+         start_lat = as.numeric(Segments[,5]),
+         end_lon = as.numeric(Segments[,7]),
+         end_lat = as.numeric(Segments[,6]),
+         direction = Segments[,1],
+         length = Segments[,4]
+         ) %>% 
+    select(segmentid,direction, street, start_lon, start_lat,
+           end_lon, end_lat, length, length)
+
 Traffic = Traffic %>% mutate(last_update = as.POSIXct(last_update, format = "%Y-%m-%dT%H:%M:%S"),
                              bus_count = as.integer(bus_count),
                              msg_count = as.integer(msg_count),
-                             traffic = as.integer(traffic))
-
+                             traffic = as.integer(traffic)) 
+Traffic1 = Traffic %>% inner_join(., Segments, by = c("segment_id" = "segmentid"))
 
 ```
 
