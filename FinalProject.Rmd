@@ -22,12 +22,9 @@ library(RCurl)
 
 ## Get Red Light and Traffic Data  
 ```{r Red Lights}
-htmlViolation = paste("https://data.cityofchicago.org/resource/twfh-866z.json?violation_date=",
-"2014-07-02T00:00:00.000"
-)
 
 first.date = as.Date("2014-07-01")
-last.date = Sys.Date() -14
+last.date = as.Date("2018-11-26")
 
 json.files = seq.Date(first.date, last.date, "day")
 
