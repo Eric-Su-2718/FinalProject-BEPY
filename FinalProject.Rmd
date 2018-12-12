@@ -12,7 +12,7 @@ output:
 ```{r Setup, include=FALSE}
 library(dplyr)
 library(jsonlite)
-library(janitor)
+#library(janitor)
 library(tidyverse)
 library(plyr)
 library(RCurl)
@@ -164,36 +164,92 @@ get_weather_daily = function(ls){
   
   preint = daily$precip_intensity
   
-  df = daily %>%
-    select(
-      -precipIntensityMax, 
-      -precipProbability, -moonPhase,
-      -temperatureHighTime, -temperatureLowTime,
-      -temperatureMin, -temperatureMinTime,
-      -temperatureMax, -temperatureMaxTime,
-      -apparentTemperatureHighTime, -apparentTemperatureLowTime,
-      -apparentTemperatureMin, -apparentTemperatureMinTime,
-      -apparentTemperatureMax, -apparentTemperatureMaxTime,
-      -dewPoint, -humidity,
-      -pressure, -windSpeed,
-      -windGust, -windGustTime,
-      -windBearing, -uvIndexTime
-    ) %>%
-    mutate(
-      time = as.POSIXct(daily$time, 
+<<<<<<< HEAD
+  df = data_frame(
+    time = as.POSIXct(daily$time, 
                         origin = "1970-01-01", tz="America/Chicago"),
-      sunrise = as.POSIXct(daily$sunriseTime, 
-                           origin = "1970-01-01", tz="America/Chicago"),
-      sunset = as.POSIXct(daily$sunsetTime, 
-                          origin = "1970-01-01", tz="America/Chicago")
-           ) %>%
-    select(
-      -sunriseTime,
-      -sunsetTime
-    )
+    summary = daily$summary,
+    icon = daily$icon,
+    sunrise = as.POSIXct(daily$sunriseTime,
+                         origin = "1970-01-01", tz="America/Chicago"),
+    sunset = as.POSIXct(daily$sunsetTime, 
+                        origin = "1970-01-01", tz="America/Chicago"),
+    precipIntensity = daily$precipIntensity,
+    precipType = ifelse(daily$precipIntensity != 0, daily$precipType, "None"),
+    visibility = daily$visibility,
+    uvIndex = daily$uvIndex,
+    cloudCover = daily$cloudCover,
+    temperatureHigh = daily$temperatureHigh,
+    temperatureHighTime = as.POSIXct(daily$temperatureHighTime,
+                                        origin = "1970-01-01",
+                                        tz = "America/Chicago"),
+    temperatureLow = daily$temperatureLow,
+    temperatureLowTime = as.POSIXct(daily$temperatureLowTime,
+                                       origin = "1970-01-01",
+                                       tz = "America/Chicago"),
+    apparentTemperatureHigh = daily$apparentTemperatureHigh,
+    apperentTemperatureHighTime = as.POSIXct(
+         daily$apparentTemperatureHighTime,
+         origin = "1970-01-01",
+         tz = "America/Chicago"),
+    apparetTemperatureLow = daily$apparentTemperatureLow,
+    apparentTemperatureLowTime = as.POSIXct(
+         daily$apparentTemperatureLowTime,
+         origin = "1970-01-01",
+         tz = "America/Chicago"
+       )
+    
+  )
   
-  return(df)
-}
+  
+#   df = daily %>%
+#     mutate(precipType = ifelse(preint != 0, daily$precipType, 0)) %>%
+#     select(
+#       time, summary,
+#       icon, sunriseTime,
+#       sunsetTime, precipIntensity,
+#       precipIntensityMaxTime, temperatureHigh,
+#       temperatureHighTime, temperatureLow,
+#       temperatureLowTime, apparentTemperatureHigh,
+#       apparentTemperatureHighTime, apparentTemperatureLow,
+#       apparentTemperatureLowTime, cloudCover,
+#       uvIndex, visibility
+#     ) %>%
+#     mutate(
+#       time = as.POSIXct(daily$time, 
+#                         origin = "1970-01-01", tz="America/Chicago"),
+#       sunrise = as.POSIXct(daily$sunriseTime, 
+#                            origin = "1970-01-01", tz="America/Chicago"),
+#       sunset = as.POSIXct(daily$sunsetTime, 
+#                           origin = "1970-01-01", tz="America/Chicago"),
+#       precipIntensityMaxTime = as.POSIXct(daily$precipIntensityMaxTime,
+#                                           origin = "1970-01-01",
+#                                           tz = "America/Chicago"),
+#       temperatureHighTime = as.POSIXct(daily$temperatureHighTime,
+#                                        origin = "1970-01-01",
+#                                        tz = "America/Chicago"),
+#       temperatureLowTime = as.POSIXct(daily$temperatureLowTime,
+#                                       origin = "1970-01-01",
+#                                       tz = "America/Chicago"),
+#       apparentTemperatureHighTime = as.POSIXct(
+#         daily$apparentTemperatureHighTime,
+#         origin = "1970-01-01",
+#         tz = "America/Chicago"),
+#       apparentTemperatureLowTime = as.POSIXct(
+#         daily$apparentTemperatureLowTime,
+#         origin = "1970-01-01",
+#         tz = "America/Chicago"
+#       )
+#            ) %>%
+#     select(
+#       -sunriseTime,
+#       -sunsetTime
+#     )
+#   
+   return(df)
+ 
+ }
+
 
 # get weather from api, location and date
 get_darksky_weather = function(api, date){
@@ -242,8 +298,9 @@ date_range = paste0(date_range, "T00:00:00") %>%
 
 # get all days data
 
+api1 = "af3059a900dc8bac54230a58e8ced0b6"
 
-api1 = "448bbc1ae89834bb843d4d38161853f6"
+#api1 = "448bbc1ae89834bb843d4d38161853f6"
 api2 = "90b9b07a146dbc30c84c30cd36c0347f"
 
 #api1 = "af3059a900dc8bac54230a58e8ced0b6"
@@ -253,6 +310,7 @@ api2 = "90b9b07a146dbc30c84c30cd36c0347f"
 
 #api1 = "c0b9c2d13d2a45325b40ea828db03ad7"
 #api2 = "14e33d073ddf24559841f74e0174434b"
+
 
 lat = 41.8781
 lon = -87.6298
@@ -272,10 +330,12 @@ daily_after = map_dfr(weather_after, function(x) x[[2]])
 weather_info_hourly = rbind(hourly_900, hourly_after)
 weather_info_daily = rbind(daily_900, daily_after)
 
+
 save(weather_info_daily, file = "weather_info_daily.Rds")
 save(weather_info_hourly, file = "weather_info_hourly.Rds")
 
 ```
+
 
 ```{r, data cleaning}
 redlight_data = redlight_data %>% 
@@ -466,11 +526,4 @@ shinyApp(
 )
 
 ```
-
-
-
-
-
-
-
 
