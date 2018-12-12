@@ -83,16 +83,30 @@ Segments = fromJSON(
   ) %>% 
   unique() 
   
+offsets = seq(0, 19000000, by = 50000)
+get.traffic = function(offset){
+  base.url = paste0("https://data.cityofchicago.org/resource/chicago-traffic-tracker-historical-congestion-estimates-by-segment.json?$limit=50000&$offset=",
+                    offset%>% as.integer())
+  return(fromJSON(base.url))
+}
+
+Traffic = map_df(offsets, get.traffic)
+
+Segments = fromJSON(
+  "https://data.cityofchicago.org/resource/8v9j-bter.json?$limit=5000"
+) %>% 
+  unique() 
+
 Segments = Segments %>%
   mutate(start_lon = as.numeric(start_lon),
-         start_lat = as.numeric(Segments[,5]),
-         end_lon = as.numeric(Segments[,7]),
-         end_lat = as.numeric(Segments[,6]),
-         direction = Segments[,1],
-         length = Segments[,4]
-         ) %>% 
-    select(segmentid,direction, street, start_lon, start_lat,
-           end_lon, end_lat, length, length)
+         start_lat = as.numeric(Segments$`_lif_lat`),
+         end_lon = as.numeric(Segments$`_lit_lon`),
+         end_lat = as.numeric(Segments$`_lit_lat`),
+         direction = Segments$`_direction`,
+         length = Segments$`_length`
+  ) %>% 
+  select(segmentid,direction, street, start_lon, start_lat,
+         end_lon, end_lat, length, length)
 
 Traffic = Traffic %>% mutate(
   last_update = as.POSIXct(last_update, format = "%Y-%m-%dT%H:%M:%S"),
@@ -261,14 +275,13 @@ save(weather_info_hourly, file = "weather_info_hourly.Rds")
 ```
 
 ```{r, data cleaning}
-library(lubridate)
 redlight_data = redlight_data %>% 
   transmute(date         = as.POSIXct(violation_date, format = "%Y-%m-%dT%H:%M:%S") %>% ymd(),
             address      = factor(address),
             camera_id    = factor(camera_id),
             intersection = factor(intersection),
             violations   = as.numeric(violations),
-            latitude     = as.numeric(latitutde),
+            latitutde    = as.numeric(latitutde),
             longitude    = as.numeric(longitude),
             x_coordinate = as.numeric(x_coordinate),
             y_coordinate = as.numeric(y_coordinate)) %>%
@@ -276,7 +289,8 @@ redlight_data = redlight_data %>%
   na.omit()
 
 
-
+#dont tun the code below!!! 
+##############################################################
 Traffic_test = Traffic %>%
   transmute(date       = as.POSIXct(last_update %>% 
                                       as.character(), 
@@ -290,6 +304,7 @@ Traffic_test = Traffic %>%
             latitude   = (start_lat + end_lat) / 2,
             longitude  = (start_lon + end_lon) / 2,
             length     = as.numeric(length)) %>% 
+  distinct() %>%
   na.omit()
 
 Traffic_test2 = Traffic_test %>%
@@ -312,24 +327,52 @@ haversine_dist = function(lat1, long1, lat2, long2){
 }
 
 nearest = function(lat, long, locations){
-  distances = pmap(locations %>% select(latitude, longitude),
-                   function(latitude, longitude)
+  distances = pmap(locations, function(latitude, longitude)
     {haversine_dist(lat, long, latitude, longitude)})
-  return(locations$segment_id[which.min(unlist(distances))])
+  return(min(unlist(distances)))
 }
+
 distinct_camera = redlight_data %>% select(latitude, longitude) %>% distinct()
 distinct_segment = Traffic_test %>% select(segment_id, latitude, longitude) %>% distinct()
 
-min_distances = pmap(distinct_camera,
+
+min_distances = pmap(redlight_data[, c("latitude","longitude")],
                       function(latitude, longitude)
-                        {nearest(latitude, longitude, distinct_segment)}) %>% 
+                        {nearest(latitude, longitude, Traffic[, c("latitude","longitude")])}) %>% 
                  unlist()
 
 #not done, don't run the code below
 a = left_join(redlight_data, data.frame(min_distances, distinct_camera))
 b = left_join(a, Traffic_test, by = c("min_distances" = "segment_id", "date"))
 
+###############################################################
 
+weather_temp = bind_rows(daily_900, daily_after) %>%
+  mutate(time = as.Date(time))
+data_tidy = left_join(redlight_data, weather_temp, by = c("date" = "time")) %>%
+  mutate(icon = factor(icon),
+         precipType = factor(precipType), 
+         day_in_week = weekdays(date),
+         Month = month(date))
+
+
+
+library(caret)
+fitControl <- trainControl(## 10-fold CV
+  method = "repeatedcv",
+  number = 10,
+  search = "random",
+  ## repeated ten times
+  repeats = 10)
+model_tune <- train(violations ~ longitude + latitude + icon + precipIntensity + 
+                  temperatureHigh + temperatureLow + apparentTemperatureHigh +
+                  apparentTemperatureLow + cloudCover + uvIndex + visibility, 
+                data = data_tidy, 
+                method = "gbm", 
+                trControl = fitControl,
+                ## This last option is actually one
+                ## for gbm() that passes through
+                verbose = FALSE)
 ```
 
 
@@ -346,6 +389,9 @@ b = left_join(a, Traffic_test, by = c("min_distances" = "segment_id", "date"))
 
 
 ```
+
+
+
 
 
 
