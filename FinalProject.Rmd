@@ -210,8 +210,8 @@ date_range = paste0(date_range, "T00:00:00") %>%
 
 # get all days data
 
-api1 = "7231a45cac6fe407c4d4f6269f560d92"
-api2 = "29e4dd8948446db4c8c099b2c6b63d49"
+api1 = "448bbc1ae89834bb843d4d38161853f6"
+api2 = "90b9b07a146dbc30c84c30cd36c0347f"
 
 lat = 41.8781
 lon = -87.6298
@@ -251,8 +251,82 @@ Traffic = Traffic %>% distinct()
 
 
 # Shiny App  
-```{r Shiny App}
+```{r shiny app}
+library(shiny)
+library(purrr)
+library(lubridate)
 
+shinyApp(
+  ui = fluidPage(
+    titlePanel(""),
+    sidebarLayout(
+      sidebarPanel(
+        
+        selectInput("month", label = h3("Month Input"),
+                    choices = 1:12,
+                    selected = 1),
+        
+        selectInput("dayofweek", label = h3("Day of the Week Input"),
+                    choices = c("Monday", "Tuesday", "Wednesday",
+                                "Thursday", "Friday", "Saturday", 
+                                "Sunday"),
+                    selected = "Monday"),
+        
+        actionButton("action", label = "Get heat map")
+        
+      ),
+      
+      mainPanel(
+        uiOutput("links")
+      )
+      
+    )
+  ),
+  
+  server = function(input, output, session){
+    
+    state = reactiveValues(
+      observers = list()
+    )
+
+    observeEvent( input$action, {
+      
+        
+      # Destroy existing observers
+      for(i in seq_along(state$observers)) {
+        state$observers[[i]]$destroy()
+      }
+        
+      ui_elems = 
+        
+          map(seq_len(nrow(nyt.headline)),
+            function(i) fluidRow(actionLink(
+              paste0("link", i),
+              paste0(i, ". ", nyt.headline[i, "Headline"])))
+        )
+      
+      output$links = renderUI(fluidPage(ui_elems))
+      
+      # Reset and create new observers for each of our links
+      state$observers = map(
+        seq_len(nrow(nyt.headline)), 
+        function(i) {
+          label = paste0("link",i)
+          observeEvent(
+            input[[label]], 
+            {
+          
+            }, 
+            ignoreInit = TRUE
+          )
+        }
+      )
+      
+      
+      
+    })
+  }
+)
 
 ```
 
