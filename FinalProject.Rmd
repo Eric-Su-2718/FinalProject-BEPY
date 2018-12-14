@@ -418,30 +418,18 @@ data_tidy = left_join(redlight_data, weather_temp, by = c("date" = "time")) %>%
          day_in_week = weekdays(date),
          Month = month(date))
 
-
-
-library(caret)
-fitControl <- trainControl(## 10-fold CV
-  method = "repeatedcv",
-  number = 10,
-  search = "random",
-  ## repeated ten times
-  repeats = 10)
-model_tune <- train(violations ~ longitude + latitude + icon + precipIntensity + 
-                  temperatureHigh + temperatureLow + apparentTemperatureHigh +
-                  apparentTemperatureLow + cloudCover + uvIndex + visibility, 
-                data = data_tidy, 
-                method = "gbm", 
-                trControl = fitControl,
-                ## This last option is actually one
-                ## for gbm() that passes through
-                verbose = FALSE)
 ```
 
 
 # Generate a Predictive model by intersection  
 ```{r}
-
+library(gbm)
+gbm_model = gbm(violations ~ longitude + latitude + icon + precipIntensity + 
+                  temperatureHigh + temperatureLow + apparentTemperatureHigh +
+                  apparentTemperatureLow + cloudCover + uvIndex + visibility + day_in_week +
+                  Month, data = data_tidy, distribution = "poisson",
+                shrinkage = 0.46503859, interaction.depth = 3, n.minobsinnode = 17, 
+                n.trees = 1799)
 
 
 ```
