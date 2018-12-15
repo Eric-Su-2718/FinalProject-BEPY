@@ -16,6 +16,7 @@ library(jsonlite)
 library(tidyverse)
 library(plyr)
 library(RCurl)
+library(lubridate)
 ```
 
 # Preparation  
@@ -351,23 +352,31 @@ redlight_data = redlight_data %>%
             camera_id    = factor(camera_id),
             intersection = factor(intersection),
             violations   = as.numeric(violations),
-            latitude     = as.numeric(latitude),
+            latitude     = as.numeric(latitutde),
             longitude    = as.numeric(longitude),
             x_coordinate = as.numeric(x_coordinate),
             y_coordinate = as.numeric(y_coordinate)) %>%
   distinct() %>%
   na.omit()
 
+# Reading in the final datasets
+# load("weather_info_daily.Rds")
+load("red_light_test.Rds")
+# weather_info_daily = readRDS(file = "weather_info_daily.Rds")
+weather_temp = readRDS("weather_info_daily.Rds")
+weather_temp = read.csv("weather_info_daily.csv") %>% mutate(time = as.Date(time))
 
 weather_temp = bind_rows(daily_900, daily_after) %>%
-  mutate(time = as.Date(time))
-
 weather_info_daily = weather_info_daily %>%
   mutate(time = as.Date(time))
 data_tidy = left_join(redlight_data, weather_info_daily, by = c("date" = "time")) %>%
   mutate(icon = factor(icon),
          precipType = factor(precipType), 
+<<<<<<< HEAD
          day_in_week = weekdays(date) %>% factor(),
+=======
+         day_in_week = weekdays(date) %>% as.factor(),
+>>>>>>> 479c4ff705897d34972d62cd7e4b4020243f3202
          Month = month(date))
 
 ```
@@ -381,7 +390,95 @@ gbm_model = gbm(violations ~ longitude + latitude + icon + precipIntensity +
                   apparentTemperatureLow + cloudCover + uvIndex + visibility + day_in_week +
                   Month, data = data_tidy, distribution = "poisson",
                 shrinkage = 0.46503859, interaction.depth = 3, n.minobsinnode = 17, 
-                n.trees = 1799)
+                n.trees = 1799, n.cores = 4)
+?gbm
+
+```
+
+
+## Read in shape file and create GGMAP
+Shape file was retrieved from https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Community-Areas-current-/cauq-8yn6 
+```{r}
+library(dplyr)
+library(sf)
+library(purrr)
+library(ggplot2)
+# library(patchwork)
+
+Chi = st_read("Boundaries - Community Areas (current)/geo_export_2029b708-dae1-4482-ad01-6e4f7381e1f4.shp", quiet = TRUE, stringsAsFactors = FALSE)
+Chi_geom = st_geometry(Chi)
+Chi_bb = st_bbox(Chi)
+
+ggplot(Chi) + 
+  geom_sf()
+
+x_rad = (Chi_bb[3] - Chi_bb[1])/2
+y_rad = (Chi_bb[4] - Chi_bb[2])/2
+# setting grid of test points
+x_pts = seq(Chi_bb[1] - x_rad, Chi_bb[3] + x_rad, length.out = 1000)
+y_pts = seq(Chi_bb[2] - y_rad, Chi_bb[4] + y_rad, length.out = 1600)
+Chi_grid = expand.grid(x = x_pts, y = y_pts) %>% as.matrix()
+
+Chi_grid_sf = st_multipoint(Chi_grid) %>% 
+  st_sfc() %>% 
+  st_sf() %>%
+  st_set_crs(st_crs(Chi)) %>%
+  st_intersection(Chi)
+
+
+# Creating the list of coordinates 
+Chi_grid_xy = st_coordinates(Chi_grid_sf) %>% as.data.frame()
+
+# Creating the Prediction for each data point
+
+get_predictions = function()
+  Pred.df = data_frame(
+    longitude = Chi_grid_xy$X,
+    latitude = Chi_grid_xy$Y,
+    icon = "cloudy",
+    precipIntensity = 0,
+    temperatureHigh = 80,
+    temperatureLow = 63,
+    apparentTemperatureHigh = 81,
+    apparetTemperatureLow = 65,
+    cloudCover = .67,
+    uvIndex = 3,
+    visibility = 9.8,
+    day_in_week = "Saturday",
+    Month = 6
+  )
+
+  p_index = predict(gbm_model, n.trees = 1799, newdata= Pred.df)
+  p = Chi_grid_xy %>%
+    mutate(
+      violations = p_index
+    )
+ggplot(p, aes(x=X,y=Y,color=violations)) + geom_point() + geom_point(data = redlight_data%>%distinct(latitude,longitude), aes(x = latitude, y = longitude))
+
+
+p_sf = Chi_grid_sf %>%
+  st_cast("POINT") %>%
+  select() %>%
+  mutate(
+      violations = p_index
+  )
+# buffering the points to be areas to get our prediction.
+poly_sf = p_sf %>%
+  group_by(violations) %>%
+  summarize() %>%
+  st_buffer(dist = (Chi_bb[3] - Chi_bb[1] ) / 600, joinStyle = 'BEVEL')  %>%
+  st_buffer(dist = -(Chi_bb[3] - Chi_bb[1] ) / 600 / 2.5, joinStyle = 'BEVEL') %>%
+  st_intersection(st_geometry(Chi_shp))
+
+# ggplot(poly_sf, aes(fill=prec)) + geom_sf()
+mapview::mapview(poly_sf)
+
+
+### Save results
+
+final = poly_sf %>%
+  rename(precinct = prec) %>%
+  mutate(precinct = as.integer(precinct))
 
 
 ```
@@ -400,11 +497,8 @@ shinyApp(
       sidebarPanel(
         
         selectInput("month", label = h3("Month Input"),
-                    choices = c("January", "February", "March",
-                                "April", "May", "June", "July",
-                                "August", "September", "October",
-                                "November", "December"),
-                    selected = "January"),
+                    choices = 1:12,
+                    selected = 1),
         
         selectInput("dayofweek", label = h3("Day of the Week Input"),
                     choices = c("Monday", "Tuesday", "Wednesday",
@@ -417,7 +511,7 @@ shinyApp(
       ),
       
       mainPanel(
-        plotOutput("heatmap")
+        uiOutput("links")
       )
       
     )
@@ -428,19 +522,43 @@ shinyApp(
     state = reactiveValues(
       observers = list()
     )
-    
+
     observeEvent( input$action, {
       
-      output$heatmap = renderPlot({
         
-        withProgress(message = "Making Heat Map", value = 0, {
+      # Destroy existing observers
+      for(i in seq_along(state$observers)) {
+        state$observers[[i]]$destroy()
+      }
+        
+      ui_elems = 
+        
+          map(seq_len(nrow(nyt.headline)),
+            function(i) fluidRow(actionLink(
+              paste0("link", i),
+              paste0(i, ". ", nyt.headline[i, "Headline"])))
+        )
+      
+      output$links = renderUI(fluidPage(ui_elems))
+      
+      # Reset and create new observers for each of our links
+      state$observers = map(
+        seq_len(nrow(nyt.headline)), 
+        function(i) {
+          label = paste0("link",i)
+          observeEvent(
+            input[[label]], 
+            {
           
-        })
-        
-      })
+            }, 
+            ignoreInit = TRUE
+          )
+        }
+      )
+      
+      
       
     })
-    
   }
 )
 
