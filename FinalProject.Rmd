@@ -16,6 +16,7 @@ library(jsonlite)
 library(tidyverse)
 library(plyr)
 library(RCurl)
+library(lubridate)
 ```
 
 # Preparation  
@@ -64,7 +65,7 @@ get.redlight.data = function(date){
 redlight_data = map(json.files, get.redlight.data) %>%
   ldply(.fun = make.df)
 
-saveRDS(redlight_data, file = "red_light_test.Rds")
+write.csv(redlight_data, file = "red_light_test.csv", row.names = FALSE)
 ```
 
 
@@ -117,8 +118,6 @@ Traffic = Traffic %>% mutate(
 Traffic = Traffic %>% 
   inner_join(., Segments, by = c("segment_id" = "segmentid"))
 
-
-saveRDS(Traffic, file = "traffic.Rds")
 
 ```
 
@@ -298,14 +297,14 @@ date_range = paste0(date_range, "T00:00:00") %>%
 
 # get all days data
 
-api1 = "af3059a900dc8bac54230a58e8ced0b6"
+#api1 = "af3059a900dc8bac54230a58e8ced0b6"
 
-#api1 = "448bbc1ae89834bb843d4d38161853f6"
-api2 = "90b9b07a146dbc30c84c30cd36c0347f"
+api1 = "448bbc1ae89834bb843d4d38161853f6"
+#api2 = "90b9b07a146dbc30c84c30cd36c0347f"
 
 #api1 = "af3059a900dc8bac54230a58e8ced0b6"
 #api1 = "7231a45cac6fe407c4d4f6269f560d92"
-#api2 = "29e4dd8948446db4c8c099b2c6b63d49"
+api2 = "29e4dd8948446db4c8c099b2c6b63d49"
 
 
 #api1 = "c0b9c2d13d2a45325b40ea828db03ad7"
@@ -334,26 +333,31 @@ weather_info_daily = rbind(daily_900, daily_after)
 saveRDS(weather_info_daily, file = "weather_info_daily.Rds")
 saveRDS(weather_info_hourly, file = "weather_info_hourly.Rds")
 
+write.csv(weather_info_daily, file = "weather_info_daily.csv", row.names = FALSE)
+write.csv(weather_info_hourly, file = "weather_info_hourly.csv", row.names = FALSE)
+
 ## weather_info_daily = readRDS("weather_info_daily.Rds")
 ## weather_info_hourly = readRDS("hourly_info_daily.Rds")
+
+# a = read.csv("weather_info_daily.csv")
+# b = read.csv("weather_info_hourly.csv")
 ```
 
 
 ```{r, data cleaning}
+library(lubridate)
 redlight_data = redlight_data %>% 
   transmute(date         = as.POSIXct(violation_date, format = "%Y-%m-%dT%H:%M:%S") %>% ymd(),
             address      = factor(address),
             camera_id    = factor(camera_id),
             intersection = factor(intersection),
             violations   = as.numeric(violations),
-            latitude    = as.numeric(latitutde),
+            latitude     = as.numeric(latitutde),
             longitude    = as.numeric(longitude),
             x_coordinate = as.numeric(x_coordinate),
             y_coordinate = as.numeric(y_coordinate)) %>%
   distinct() %>%
   na.omit()
-
-##############################################################
 
 # Reading in the final datasets
 # load("weather_info_daily.Rds")
@@ -363,8 +367,9 @@ weather_temp = readRDS("weather_info_daily.Rds")
 weather_temp = read.csv("weather_info_daily.csv") %>% mutate(time = as.Date(time))
 
 weather_temp = bind_rows(daily_900, daily_after) %>%
+weather_info_daily = weather_info_daily %>%
   mutate(time = as.Date(time))
-data_tidy = left_join(redlight_data, weather_temp, by = c("date" = "time")) %>%
+data_tidy = left_join(redlight_data, weather_info_daily, by = c("date" = "time")) %>%
   mutate(icon = factor(icon),
          precipType = factor(precipType), 
          day_in_week = weekdays(date) %>% as.factor(),
