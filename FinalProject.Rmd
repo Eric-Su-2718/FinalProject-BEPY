@@ -345,6 +345,8 @@ write.csv(weather_info_hourly, file = "weather_info_hourly.csv", row.names = FAL
 
 
 ```{r, data cleaning}
+load("red_light_test.Rds")
+
 library(lubridate)
 redlight_data = redlight_data %>% 
   transmute(date         = as.POSIXct(violation_date, format = "%Y-%m-%dT%H:%M:%S") %>% ymd(),
@@ -361,22 +363,16 @@ redlight_data = redlight_data %>%
 
 # Reading in the final datasets
 # load("weather_info_daily.Rds")
-load("red_light_test.Rds")
 # weather_info_daily = readRDS(file = "weather_info_daily.Rds")
-weather_temp = readRDS("weather_info_daily.Rds")
-weather_temp = read.csv("weather_info_daily.csv") %>% mutate(time = as.Date(time))
+weather_info_daily = read.csv("weather_info_daily.csv") %>% mutate(time = as.Date(time))
 
-weather_temp = bind_rows(daily_900, daily_after) %>%
+# weather_temp = bind_rows(daily_900, daily_after) %>%
 weather_info_daily = weather_info_daily %>%
   mutate(time = as.Date(time))
 data_tidy = left_join(redlight_data, weather_info_daily, by = c("date" = "time")) %>%
   mutate(icon = factor(icon),
          precipType = factor(precipType), 
-<<<<<<< HEAD
-         day_in_week = weekdays(date) %>% factor(),
-=======
          day_in_week = weekdays(date) %>% as.factor(),
->>>>>>> 479c4ff705897d34972d62cd7e4b4020243f3202
          Month = month(date))
 
 ```
