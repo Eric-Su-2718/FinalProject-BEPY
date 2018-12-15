@@ -340,6 +340,7 @@ saveRDS(weather_info_hourly, file = "weather_info_hourly.Rds")
 
 
 ```{r, data cleaning}
+library(lubridate)
 redlight_data = redlight_data %>% 
   transmute(date         = as.POSIXct(violation_date, format = "%Y-%m-%dT%H:%M:%S") %>% ymd(),
             address      = factor(address),
@@ -414,7 +415,10 @@ b = left_join(a, Traffic_test, by = c("min_distances" = "segment_id", "date"))
 
 weather_temp = bind_rows(daily_900, daily_after) %>%
   mutate(time = as.Date(time))
-data_tidy = left_join(redlight_data, weather_temp, by = c("date" = "time")) %>%
+
+weather_info_daily = weather_info_daily %>%
+  mutate(time = as.Date(time))
+data_tidy = left_join(redlight_data, weather_info_daily, by = c("date" = "time")) %>%
   mutate(icon = factor(icon),
          precipType = factor(precipType), 
          day_in_week = weekdays(date),
