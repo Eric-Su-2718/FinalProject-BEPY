@@ -358,64 +358,6 @@ redlight_data = redlight_data %>%
   na.omit()
 
 
-#dont tun the code below!!! 
-##############################################################
-Traffic_test = Traffic %>%
-  transmute(date       = as.POSIXct(last_update %>% 
-                                      as.character(), 
-                                    format = "%Y-%m-%d") %>% ymd(),
-            segment_id = factor(segment_id),
-            bus_count  = bus_count,
-            msg_count  = msg_count,
-            traffic    = traffic,
-            direction  = factor(direction),
-            street     = factor(street),
-            latitude   = (start_lat + end_lat) / 2,
-            longitude  = (start_lon + end_lon) / 2,
-            length     = as.numeric(length)) %>% 
-  distinct() %>%
-  na.omit()
-
-Traffic_test2 = Traffic_test %>%
-  group_by(segment_id, date) %>%
-  dplyr::summarise(bus_count = median(bus_count, na.rm = T),
-                   msg_count = median(msg_count, na.rm = T),
-                   traffic   = median(traffic, na.rm = T))
-Traffic_test3 = Traffic_test %>%
-  select(-bus_count, -msg_count, -traffic) %>%
-  distinct()
-
-Traffic_test4 = left_join(Traffic_test2, Traffic_test3)
-
-haversine_dist = function(lat1, long1, lat2, long2){
-  lat1  = lat1  * 0.0174532925
-  lat2  = lat2  * 0.0174532925
-  long1 = long1 * 0.0174532925
-  long2 = long2 * 0.0174532925
-  return(12742 * asin(sqrt((sin((lat2-lat1)/2)^2 + cos(lat1)* cos(lat2)* (sin((long2-long1)/2)^2)))))
-}
-
-nearest = function(lat, long, locations){
-  distances = pmap(locations, function(latitude, longitude)
-    {haversine_dist(lat, long, latitude, longitude)})
-  return(min(unlist(distances)))
-}
-
-distinct_camera = redlight_data %>% select(latitude, longitude) %>% distinct()
-distinct_segment = Traffic_test %>% select(segment_id, latitude, longitude) %>% distinct()
-
-
-min_distances = pmap(redlight_data[, c("latitude","longitude")],
-                      function(latitude, longitude)
-                        {nearest(latitude, longitude, Traffic[, c("latitude","longitude")])}) %>% 
-                 unlist()
-
-#not done, don't run the code below
-a = left_join(redlight_data, data.frame(min_distances, distinct_camera))
-b = left_join(a, Traffic_test, by = c("min_distances" = "segment_id", "date"))
-
-###############################################################
-
 weather_temp = bind_rows(daily_900, daily_after) %>%
   mutate(time = as.Date(time))
 data_tidy = left_join(redlight_data, weather_temp, by = c("date" = "time")) %>%
