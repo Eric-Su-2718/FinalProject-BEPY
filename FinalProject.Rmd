@@ -570,7 +570,7 @@ shinyApp(
   
   server = function(input, output, session){
 
-   data = observeEvent( input$action, {
+   observeEvent( input$action, {
       
       df = data_frame(
         input$month,
@@ -591,8 +591,7 @@ shinyApp(
     output$dist = renderPlot({
       req(input$action)
       Sys.sleep(5)
-      plot(data()$uvIndex)
-      
+      plot(rbeta(100, 1, 1))
     }) 
   }
 )
