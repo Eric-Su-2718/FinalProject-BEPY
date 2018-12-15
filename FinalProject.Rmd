@@ -415,8 +415,6 @@ b = left_join(a, Traffic_test, by = c("min_distances" = "segment_id", "date"))
 ## Reading in the final datasets
 # load("weather_info_daily.Rds")
 # load("red_light_test.Rds")
-weather_temp = import("weather_info_daily.Rds")
-warnings()
 
 weather_temp = bind_rows(daily_900, daily_after) %>%
   mutate(time = as.Date(time))
@@ -431,7 +429,6 @@ data_tidy = left_join(redlight_data, weather_temp, by = c("date" = "time")) %>%
 
 # Generate a Predictive model by intersection  
 ```{r}
-install.packages('gbm')
 library(gbm)
 gbm_model = gbm(violations ~ longitude + latitude + icon + precipIntensity + 
                   temperatureHigh + temperatureLow + apparentTemperatureHigh +
