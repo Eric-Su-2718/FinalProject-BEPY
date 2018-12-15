@@ -325,17 +325,19 @@ redlight_data = redlight_data %>%
 weather_info_daily = read.csv("weather_info_daily.csv") %>% 
   mutate(time = as.Date(time))
 
-weather_info_daily = read.csv("weather_info_daily.csv") %>% 
+weather_info_daily = read.csv("weather_info_daily.csv", stringsAsFactors = F) %>% 
   mutate(time = as.Date(time))
 
 # weather_temp = bind_rows(daily_900, daily_after) %>%
 weather_info_daily = weather_info_daily %>%
   mutate(time = as.Date(time))
 data_tidy = left_join(redlight_data, weather_info_daily, by = c("date" = "time")) %>%
-  mutate(icon = factor(icon),
+  mutate(icon = ifelse(icon == "partly-cloudy-day" | icon == "partly-cloudy-night", 
+                       "cloudy", icon) %>%
+           as.factor(),
          precipType = factor(precipType), 
          day_in_week = weekdays(date) %>% as.factor(),
-         Month = month(date))
+         Month = month(date) %>% as.factor())
 ```
 
 
@@ -351,14 +353,14 @@ library(gbm)
 
 
 library(mgcv)
-test.gam = gam(violations ~ s(latitude) + s(longitude)+ s(temperatureHigh), data=data_tidy)
-plot(test.gam)
-test.gam = gam(log(violations) ~ te(latitude, longitude)+ s(temperatureHigh), data=data_tidy)
-plot(test.gam)
-test.gam = gam(violations ~ te(latitude, longitude)+ s(temperatureHigh), data=data_tidy, family = ziP())
+#test.gam = gam(violations ~ s(latitude) + s(longitude)+ s(temperatureHigh), data=data_tidy)
+#plot(test.gam)
+#test.gam = gam(log(violations) ~ te(latitude, longitude)+ s(temperatureHigh), data=data_tidy)
+#plot(test.gam)
+#test.gam = gam(violations ~ te(latitude, longitude)+ s(temperatureHigh), data=data_tidy, family = ziP())
 
-test.gam = gam(violations ~ te(latitude, longitude)+ s(temperatureHigh) + s(month) + s(as.factor(icon) ), data=data_tidy, family = poisson)
 
+test.gam = gam(violations ~ te(latitude, longitude) + s(temperatureHigh) + s(temperatureLow) + Month +day_in_week + s(visibility) + s(uvIndex) + icon, data=data_tidy, family = poisson)
 
 
 ```
@@ -399,12 +401,8 @@ get_predictions = function(){
     longitude = Chi_grid_xy$X,
     latitude = Chi_grid_xy$Y,
     icon = "cloudy",
-    precipIntensity = 0,
     temperatureHigh = 80,
     temperatureLow = 63,
-    apparentTemperatureHigh = 81,
-    apparentTemperatureLow = 65,
-    cloudCover = 0,
     uvIndex = 3,
     visibility = 9.8,
     day_in_week = "Monday",
@@ -421,34 +419,13 @@ get_predictions = function(){
 }
 
 p = get_predictions()
+
 ggplot(p, aes(x=X,y=Y)) + 
   geom_point(aes(colour = log(heat+1))) +
   scale_color_distiller(name = "Violation", palette = "Spectral") + 
   #scale_fill_continuous(breaks = c(1, 2, 3, 4, 5), labels = c(50, 100, 150, 200, 250))
   theme(legend.position = "None")
-  
-  
 
-p_sf = Chi_grid_sf %>%
-  st_cast("POINT") %>%
-  select() %>%
-  mutate(
-      violations = p_index
-  )
-# buffering the points to be areas to get our prediction.
-poly_sf = p_sf %>%
-  group_by(violations) %>%
-  summarize() %>%
-  st_buffer(dist = (Chi_bb[3] - Chi_bb[1] ) / 600, joinStyle = 'BEVEL')  %>%
-  st_buffer(dist = -(Chi_bb[3] - Chi_bb[1] ) / 600 / 2.5, joinStyle = 'BEVEL') %>%
-  st_intersection(st_geometry(Chi_shp))
-# ggplot(poly_sf, aes(fill=prec)) + geom_sf()
-mapview::mapview(poly_sf)
-
-### Save results
-final = poly_sf %>%
-  rename(precinct = prec) %>%
-  mutate(precinct = as.integer(precinct))
 ```
 
 
@@ -550,6 +527,44 @@ shinyApp(
     
     })
    
+    model = gam(violations ~ te(latitude, longitude) + s(temperatureHigh) + 
+                  s(temperatureLow) + Month +day_in_week + s(visibility) + 
+                  s(uvIndex) + icon, data=data_tidy, family = poisson)
+    
+    get_predictions = function(){
+      Pred.df = data_frame(
+        longitude = Chi_grid_xy$X,
+        latitude = Chi_grid_xy$Y,
+        icon = input$weather_type,
+        temperatureHigh = input$range[2],
+        temperatureLow = input$range[1],
+        uvIndex = input$uvIndex,
+        visibility = input$visibility,
+        day_in_week = input$dayofweek,
+        Month = input$month
+        )
+      
+      p_index = predict(model, newdata = Pred.df, type = "response")
+      
+      p = Chi_grid_xy %>%
+        mutate(
+          heat = p_index %>% as.numeric() 
+          )
+      
+      return(p)
+      
+      }
+
+p = get_predictions()
+
+ggplot(p, aes(x=X,y=Y)) + 
+  geom_point(aes(colour = log(heat+1))) +
+  scale_color_distiller(name = "Violation", palette = "Spectral") + 
+  #scale_fill_continuous(breaks = c(1, 2, 3, 4, 5), labels = c(50, 100, 150, 200, 250))
+  theme(legend.position = "None")
+
+
+    
     output$dist = renderPlot({
       req(input$action)
       Sys.sleep(5)
