@@ -454,8 +454,11 @@ shinyApp(
       sidebarPanel(
         
         selectInput("month", label = h3("Month Input"),
-                    choices = 1:12,
-                    selected = 1),
+                    choices = c("January", "February", "March",
+                                "April", "May", "June", "July",
+                                "August", "September", "October",
+                                "November", "December"),
+                    selected = "January"),
         
         selectInput("dayofweek", label = h3("Day of the Week Input"),
                     choices = c("Monday", "Tuesday", "Wednesday",
@@ -468,7 +471,7 @@ shinyApp(
       ),
       
       mainPanel(
-        uiOutput("links")
+        plotOutput("heatmap")
       )
       
     )
@@ -479,43 +482,19 @@ shinyApp(
     state = reactiveValues(
       observers = list()
     )
-
+    
     observeEvent( input$action, {
       
+      output$heatmap = renderPlot({
         
-      # Destroy existing observers
-      for(i in seq_along(state$observers)) {
-        state$observers[[i]]$destroy()
-      }
-        
-      ui_elems = 
-        
-          map(seq_len(nrow(nyt.headline)),
-            function(i) fluidRow(actionLink(
-              paste0("link", i),
-              paste0(i, ". ", nyt.headline[i, "Headline"])))
-        )
-      
-      output$links = renderUI(fluidPage(ui_elems))
-      
-      # Reset and create new observers for each of our links
-      state$observers = map(
-        seq_len(nrow(nyt.headline)), 
-        function(i) {
-          label = paste0("link",i)
-          observeEvent(
-            input[[label]], 
-            {
+        withProgress(message = "Making Heat Map", value = 0, {
           
-            }, 
-            ignoreInit = TRUE
-          )
-        }
-      )
-      
-      
+        })
+        
+      })
       
     })
+    
   }
 )
 
