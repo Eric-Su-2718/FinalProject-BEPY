@@ -451,13 +451,13 @@ get_predictions = function()
     )
 ggplot(p, aes(x=X,y=Y,color=violations)) + geom_point() + geom_point(data = redlight_data%>%distinct(latitude,longitude), aes(x = latitude, y = longitude))
 
-
 p_sf = Chi_grid_sf %>%
   st_cast("POINT") %>%
   select() %>%
   mutate(
       violations = p_index
   )
+
 # buffering the points to be areas to get our prediction.
 poly_sf = p_sf %>%
   group_by(violations) %>%
