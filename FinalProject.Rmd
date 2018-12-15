@@ -361,6 +361,9 @@ library(mgcv)
 
 test.gam = gam(violations ~ te(latitude, longitude) + s(temperatureHigh) + s(temperatureLow) + Month +day_in_week + s(visibility) + s(uvIndex) + icon, data=data_tidy, family = poisson)
 
+model = gam(violations ~ te(latitude, longitude) + s(temperatureHigh) + 
+                  s(temperatureLow) + Month +day_in_week + s(visibility) + 
+                  s(uvIndex) + icon, data=data_tidy, family = poisson)
 
 ```
 
@@ -434,6 +437,8 @@ library(lubridate)
 
 library(shinycssloaders)
 
+
+
 shinyApp(
   ui = fluidPage(
     titlePanel(""),
@@ -505,7 +510,7 @@ shinyApp(
     state = reactiveValues(
       observers = list()
     )
-    observeEvent( input$action, {
+    data = eventReactive( input$action, {
       
       df = data_frame(
         Chi_grid_xy[,1],
@@ -519,55 +524,31 @@ shinyApp(
         input$range[1],
         input$range[2]
       )
-      colnames(df) = c("longitude", "latitude", "Month", "
-                       day_in_week", "icon", "visibility",
+      colnames(df) = c("longitude", "latitude", "Month", 
+                       "day_in_week", "icon", "visibility",
                        "uvIndex", "cloudCover", "temperatureLow", 
                        "temperatureHigh")
     
+      return(df)
     })
-   
-    model = gam(violations ~ te(latitude, longitude) + s(temperatureHigh) + 
-                  s(temperatureLow) + Month +day_in_week + s(visibility) + 
-                  s(uvIndex) + icon, data=data_tidy, family = poisson)
-    
-    get_predictions = function(){
-      Pred.df = data_frame(
-        longitude = Chi_grid_xy$X,
-        latitude = Chi_grid_xy$Y,
-        icon = input$weather_type,
-        temperatureHigh = input$range[2],
-        temperatureLow = input$range[1],
-        uvIndex = input$uvIndex,
-        visibility = input$visibility,
-        day_in_week = input$dayofweek,
-        Month = input$month
-        )
       
-      p_index = predict(model, newdata = Pred.df, type = "response")
       
-      p = Chi_grid_xy %>%
-        mutate(
-          heat = p_index %>% as.numeric() 
-          )
-      
-      return(p)
-      
-      }
-
-p = get_predictions()
-
-ggplot(p, aes(x=X,y=Y)) + 
-  geom_point(aes(colour = log(heat+1))) +
-  scale_color_distiller(name = "Violation", palette = "Spectral") + 
-  #scale_fill_continuous(breaks = c(1, 2, 3, 4, 5), labels = c(50, 100, 150, 200, 250))
-  theme(legend.position = "None")
-
-
-    
     output$dist = renderPlot({
+      
       req(input$action)
-      Sys.sleep(5)
-      plot(rbeta(100, 1, 1))
+      
+      p_index = predict(model, newdata = data(), type = "response")
+      
+      p = data.frame(Chi_grid_xy, p_index) %>%
+        mutate(heat = p_index %>% as.numeric())
+      
+      ggplot(p, aes(x=X,y=Y)) + 
+        geom_point(aes(colour = log(heat+1))) +
+        scale_color_distiller(name = "Violation", palette = "Spectral") + 
+        #scale_fill_continuous(breaks = c(1, 2, 3, 4, 5), labels = c(50, 100, 150, 200, 250))
+        theme(legend.position = "None")
+      
+      
     }) 
   }
 )
