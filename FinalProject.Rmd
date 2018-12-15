@@ -16,6 +16,7 @@ library(jsonlite)
 library(tidyverse)
 library(plyr)
 library(RCurl)
+library(lubridate)
 ```
 
 # Preparation  
@@ -351,23 +352,19 @@ redlight_data = redlight_data %>%
             camera_id    = factor(camera_id),
             intersection = factor(intersection),
             violations   = as.numeric(violations),
-            latitude     = as.numeric(latitude),
+            latitude     = as.numeric(latitutde),
             longitude    = as.numeric(longitude),
             x_coordinate = as.numeric(x_coordinate),
             y_coordinate = as.numeric(y_coordinate)) %>%
   distinct() %>%
   na.omit()
 
-
-weather_temp = bind_rows(daily_900, daily_after) %>%
-  mutate(time = as.Date(time))
-
 weather_info_daily = weather_info_daily %>%
   mutate(time = as.Date(time))
 data_tidy = left_join(redlight_data, weather_info_daily, by = c("date" = "time")) %>%
   mutate(icon = factor(icon),
          precipType = factor(precipType), 
-         day_in_week = weekdays(date),
+         day_in_week = weekdays(date) %>% factor(),
          Month = month(date))
 
 ```
