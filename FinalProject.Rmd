@@ -346,82 +346,28 @@ redlight_data = redlight_data %>%
             camera_id    = factor(camera_id),
             intersection = factor(intersection),
             violations   = as.numeric(violations),
-            latitutde    = as.numeric(latitutde),
+            latitude    = as.numeric(latitutde),
             longitude    = as.numeric(longitude),
             x_coordinate = as.numeric(x_coordinate),
             y_coordinate = as.numeric(y_coordinate)) %>%
   distinct() %>%
   na.omit()
 
-
-#dont tun the code below!!! 
-##############################################################
-Traffic_test = Traffic %>%
-  transmute(date       = as.POSIXct(last_update %>% 
-                                      as.character(), 
-                                    format = "%Y-%m-%d") %>% ymd(),
-            segment_id = factor(segment_id),
-            bus_count  = bus_count,
-            msg_count  = msg_count,
-            traffic    = traffic,
-            direction  = factor(direction),
-            street     = factor(street),
-            latitude   = (start_lat + end_lat) / 2,
-            longitude  = (start_lon + end_lon) / 2,
-            length     = as.numeric(length)) %>% 
-  distinct() %>%
-  na.omit()
-
-Traffic_test2 = Traffic_test %>%
-  group_by(segment_id, date) %>%
-  dplyr::summarise(bus_count = median(bus_count, na.rm = T),
-                   msg_count = median(msg_count, na.rm = T),
-                   traffic   = median(traffic, na.rm = T))
-Traffic_test3 = Traffic_test %>%
-  select(-bus_count, -msg_count, -traffic) %>%
-  distinct()
-
-Traffic_test4 = left_join(Traffic_test2, Traffic_test3)
-
-haversine_dist = function(lat1, long1, lat2, long2){
-  lat1  = lat1  * 0.0174532925
-  lat2  = lat2  * 0.0174532925
-  long1 = long1 * 0.0174532925
-  long2 = long2 * 0.0174532925
-  return(12742 * asin(sqrt((sin((lat2-lat1)/2)^2 + cos(lat1)* cos(lat2)* (sin((long2-long1)/2)^2)))))
-}
-
-nearest = function(lat, long, locations){
-  distances = pmap(locations, function(latitude, longitude)
-    {haversine_dist(lat, long, latitude, longitude)})
-  return(min(unlist(distances)))
-}
-
-distinct_camera = redlight_data %>% select(latitude, longitude) %>% distinct()
-distinct_segment = Traffic_test %>% select(segment_id, latitude, longitude) %>% distinct()
-
-
-min_distances = pmap(redlight_data[, c("latitude","longitude")],
-                      function(latitude, longitude)
-                        {nearest(latitude, longitude, Traffic[, c("latitude","longitude")])}) %>% 
-                 unlist()
-
-#not done, don't run the code below
-a = left_join(redlight_data, data.frame(min_distances, distinct_camera))
-b = left_join(a, Traffic_test, by = c("min_distances" = "segment_id", "date"))
-
 ##############################################################
 
-## Reading in the final datasets
+# Reading in the final datasets
 # load("weather_info_daily.Rds")
-# load("red_light_test.Rds")
+load("red_light_test.Rds")
+# weather_info_daily = readRDS(file = "weather_info_daily.Rds")
+weather_temp = readRDS("weather_info_daily.Rds")
+weather_temp = read.csv("weather_info_daily.csv") %>% mutate(time = as.Date(time))
 
 weather_temp = bind_rows(daily_900, daily_after) %>%
   mutate(time = as.Date(time))
 data_tidy = left_join(redlight_data, weather_temp, by = c("date" = "time")) %>%
   mutate(icon = factor(icon),
          precipType = factor(precipType), 
-         day_in_week = weekdays(date),
+         day_in_week = weekdays(date) %>% as.factor(),
          Month = month(date))
 
 ```
@@ -435,8 +381,8 @@ gbm_model = gbm(violations ~ longitude + latitude + icon + precipIntensity +
                   apparentTemperatureLow + cloudCover + uvIndex + visibility + day_in_week +
                   Month, data = data_tidy, distribution = "poisson",
                 shrinkage = 0.46503859, interaction.depth = 3, n.minobsinnode = 17, 
-                n.trees = 1799)
-
+                n.trees = 1799, n.cores = 4)
+?gbm
 
 ```
 
@@ -475,27 +421,46 @@ Chi_grid_sf = st_multipoint(Chi_grid) %>%
 Chi_grid_xy = st_coordinates(Chi_grid_sf) %>% as.data.frame()
 
 # Creating the Prediction for each data point
-p_index = predict(m, newdata= Chi_grid_xy %>% select(-L1) %>% as.matrix())
-p = manh_grid_xy %>%
-  mutate(
-    prec = precinct_map[p_index + 1]
+
+get_predictions = function()
+  Pred.df = data_frame(
+    longitude = Chi_grid_xy$X,
+    latitude = Chi_grid_xy$Y,
+    icon = "cloudy",
+    precipIntensity = 0,
+    temperatureHigh = 80,
+    temperatureLow = 63,
+    apparentTemperatureHigh = 81,
+    apparetTemperatureLow = 65,
+    cloudCover = .67,
+    uvIndex = 3,
+    visibility = 9.8,
+    day_in_week = "Saturday",
+    Month = 6
   )
-# ggplot(p, aes(x=X,y=Y,color=prec)) + geom_point()
+
+  p_index = predict(gbm_model, n.trees = 1799, newdata= Pred.df)
+  p = Chi_grid_xy %>%
+    mutate(
+      violations = p_index
+    )
+ggplot(p, aes(x=X,y=Y,color=violations)) + geom_point() + geom_point(data = redlight_data%>%distinct(latitude,longitude), aes(x = latitude, y = longitude))
 
 
-p_sf = manh_grid_sf %>%
+p_sf = Chi_grid_sf %>%
   st_cast("POINT") %>%
   select() %>%
   mutate(
-    prec = precinct_map[p_index + 1]
+      violations = p_index
   )
 # buffering the points to be areas to get our prediction.
 poly_sf = p_sf %>%
-  group_by(prec) %>%
+  group_by(violations) %>%
   summarize() %>%
-  st_buffer(dist = (manh_bb[3] - manh_bb[1] ) / 600, joinStyle = 'BEVEL')  %>%
-  st_buffer(dist = -(manh_bb[3] - manh_bb[1] ) / 600 / 2.5, joinStyle = 'BEVEL') %>%
-  st_intersection(st_geometry(manh_shp))
+  st_buffer(dist = (Chi_bb[3] - Chi_bb[1] ) / 600, joinStyle = 'BEVEL')  %>%
+  st_buffer(dist = -(Chi_bb[3] - Chi_bb[1] ) / 600 / 2.5, joinStyle = 'BEVEL') %>%
+  st_intersection(st_geometry(Chi_shp))
+
 # ggplot(poly_sf, aes(fill=prec)) + geom_sf()
 mapview::mapview(poly_sf)
 
@@ -523,11 +488,8 @@ shinyApp(
       sidebarPanel(
         
         selectInput("month", label = h3("Month Input"),
-                    choices = c("January", "February", "March",
-                                "April", "May", "June", "July",
-                                "August", "September", "October",
-                                "November", "December"),
-                    selected = "January"),
+                    choices = 1:12,
+                    selected = 1),
         
         selectInput("dayofweek", label = h3("Day of the Week Input"),
                     choices = c("Monday", "Tuesday", "Wednesday",
@@ -540,7 +502,7 @@ shinyApp(
       ),
       
       mainPanel(
-        plotOutput("heatmap")
+        uiOutput("links")
       )
       
     )
@@ -551,19 +513,43 @@ shinyApp(
     state = reactiveValues(
       observers = list()
     )
-    
+
     observeEvent( input$action, {
       
-      output$heatmap = renderPlot({
         
-        withProgress(message = "Making Heat Map", value = 0, {
+      # Destroy existing observers
+      for(i in seq_along(state$observers)) {
+        state$observers[[i]]$destroy()
+      }
+        
+      ui_elems = 
+        
+          map(seq_len(nrow(nyt.headline)),
+            function(i) fluidRow(actionLink(
+              paste0("link", i),
+              paste0(i, ". ", nyt.headline[i, "Headline"])))
+        )
+      
+      output$links = renderUI(fluidPage(ui_elems))
+      
+      # Reset and create new observers for each of our links
+      state$observers = map(
+        seq_len(nrow(nyt.headline)), 
+        function(i) {
+          label = paste0("link",i)
+          observeEvent(
+            input[[label]], 
+            {
           
-        })
-        
-      })
+            }, 
+            ignoreInit = TRUE
+          )
+        }
+      )
+      
+      
       
     })
-    
   }
 )
 
