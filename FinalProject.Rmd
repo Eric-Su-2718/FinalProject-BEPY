@@ -408,7 +408,13 @@ min_distances = pmap(redlight_data[, c("latitude","longitude")],
 a = left_join(redlight_data, data.frame(min_distances, distinct_camera))
 b = left_join(a, Traffic_test, by = c("min_distances" = "segment_id", "date"))
 
-###############################################################
+##############################################################
+
+## Reading in the final datasets
+# load("weather_info_daily.Rds")
+# load("red_light_test.Rds")
+weather_temp = import("weather_info_daily.Rds")
+warnings()
 
 weather_temp = bind_rows(daily_900, daily_after) %>%
   mutate(time = as.Date(time))
@@ -423,6 +429,7 @@ data_tidy = left_join(redlight_data, weather_temp, by = c("date" = "time")) %>%
 
 # Generate a Predictive model by intersection  
 ```{r}
+install.packages('gbm')
 library(gbm)
 gbm_model = gbm(violations ~ longitude + latitude + icon + precipIntensity + 
                   temperatureHigh + temperatureLow + apparentTemperatureHigh +
@@ -430,6 +437,75 @@ gbm_model = gbm(violations ~ longitude + latitude + icon + precipIntensity +
                   Month, data = data_tidy, distribution = "poisson",
                 shrinkage = 0.46503859, interaction.depth = 3, n.minobsinnode = 17, 
                 n.trees = 1799)
+
+
+```
+
+
+## Read in shape file and create GGMAP
+Shape file was retrieved from https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Community-Areas-current-/cauq-8yn6 
+```{r}
+library(dplyr)
+library(sf)
+library(purrr)
+library(ggplot2)
+# library(patchwork)
+
+Chi = st_read("Boundaries - Community Areas (current)/geo_export_2029b708-dae1-4482-ad01-6e4f7381e1f4.shp", quiet = TRUE, stringsAsFactors = FALSE)
+Chi_geom = st_geometry(Chi)
+Chi_bb = st_bbox(Chi)
+
+ggplot(Chi) + 
+  geom_sf()
+
+x_rad = (Chi_bb[3] - Chi_bb[1])/2
+y_rad = (Chi_bb[4] - Chi_bb[2])/2
+# setting grid of test points
+x_pts = seq(Chi_bb[1] - x_rad, Chi_bb[3] + x_rad, length.out = 1000)
+y_pts = seq(Chi_bb[2] - y_rad, Chi_bb[4] + y_rad, length.out = 1600)
+Chi_grid = expand.grid(x = x_pts, y = y_pts) %>% as.matrix()
+
+Chi_grid_sf = st_multipoint(Chi_grid) %>% 
+  st_sfc() %>% 
+  st_sf() %>%
+  st_set_crs(st_crs(Chi)) %>%
+  st_intersection(Chi)
+
+
+# Creating the list of coordinates 
+Chi_grid_xy = st_coordinates(Chi_grid_sf) %>% as.data.frame()
+
+# Creating the Prediction for each data point
+p_index = predict(m, newdata= Chi_grid_xy %>% select(-L1) %>% as.matrix())
+p = manh_grid_xy %>%
+  mutate(
+    prec = precinct_map[p_index + 1]
+  )
+# ggplot(p, aes(x=X,y=Y,color=prec)) + geom_point()
+
+
+p_sf = manh_grid_sf %>%
+  st_cast("POINT") %>%
+  select() %>%
+  mutate(
+    prec = precinct_map[p_index + 1]
+  )
+# buffering the points to be areas to get our prediction.
+poly_sf = p_sf %>%
+  group_by(prec) %>%
+  summarize() %>%
+  st_buffer(dist = (manh_bb[3] - manh_bb[1] ) / 600, joinStyle = 'BEVEL')  %>%
+  st_buffer(dist = -(manh_bb[3] - manh_bb[1] ) / 600 / 2.5, joinStyle = 'BEVEL') %>%
+  st_intersection(st_geometry(manh_shp))
+# ggplot(poly_sf, aes(fill=prec)) + geom_sf()
+mapview::mapview(poly_sf)
+
+
+### Save results
+
+final = poly_sf %>%
+  rename(precinct = prec) %>%
+  mutate(precinct = as.integer(precinct))
 
 
 ```
