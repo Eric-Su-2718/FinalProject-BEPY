@@ -64,7 +64,7 @@ get.redlight.data = function(date){
 redlight_data = map(json.files, get.redlight.data) %>%
   ldply(.fun = make.df)
 
-saveRDS(redlight_data, file = "red_light_test.Rds")
+write.csv(redlight_data, file = "red_light_test.csv", row.names = FALSE)
 ```
 
 
@@ -117,8 +117,6 @@ Traffic = Traffic %>% mutate(
 Traffic = Traffic %>% 
   inner_join(., Segments, by = c("segment_id" = "segmentid"))
 
-
-saveRDS(Traffic, file = "traffic.Rds")
 
 ```
 
@@ -298,14 +296,14 @@ date_range = paste0(date_range, "T00:00:00") %>%
 
 # get all days data
 
-api1 = "af3059a900dc8bac54230a58e8ced0b6"
+#api1 = "af3059a900dc8bac54230a58e8ced0b6"
 
-#api1 = "448bbc1ae89834bb843d4d38161853f6"
-api2 = "90b9b07a146dbc30c84c30cd36c0347f"
+api1 = "448bbc1ae89834bb843d4d38161853f6"
+#api2 = "90b9b07a146dbc30c84c30cd36c0347f"
 
 #api1 = "af3059a900dc8bac54230a58e8ced0b6"
 #api1 = "7231a45cac6fe407c4d4f6269f560d92"
-#api2 = "29e4dd8948446db4c8c099b2c6b63d49"
+api2 = "29e4dd8948446db4c8c099b2c6b63d49"
 
 
 #api1 = "c0b9c2d13d2a45325b40ea828db03ad7"
@@ -334,8 +332,14 @@ weather_info_daily = rbind(daily_900, daily_after)
 saveRDS(weather_info_daily, file = "weather_info_daily.Rds")
 saveRDS(weather_info_hourly, file = "weather_info_hourly.Rds")
 
+write.csv(weather_info_daily, file = "weather_info_daily.csv", row.names = FALSE)
+write.csv(weather_info_hourly, file = "weather_info_hourly.csv", row.names = FALSE)
+
 ## weather_info_daily = readRDS("weather_info_daily.Rds")
 ## weather_info_hourly = readRDS("hourly_info_daily.Rds")
+
+# a = read.csv("weather_info_daily.csv")
+# b = read.csv("weather_info_hourly.csv")
 ```
 
 
@@ -354,64 +358,6 @@ redlight_data = redlight_data %>%
   distinct() %>%
   na.omit()
 
-
-#dont tun the code below!!! 
-##############################################################
-Traffic_test = Traffic %>%
-  transmute(date       = as.POSIXct(last_update %>% 
-                                      as.character(), 
-                                    format = "%Y-%m-%d") %>% ymd(),
-            segment_id = factor(segment_id),
-            bus_count  = bus_count,
-            msg_count  = msg_count,
-            traffic    = traffic,
-            direction  = factor(direction),
-            street     = factor(street),
-            latitude   = (start_lat + end_lat) / 2,
-            longitude  = (start_lon + end_lon) / 2,
-            length     = as.numeric(length)) %>% 
-  distinct() %>%
-  na.omit()
-
-Traffic_test2 = Traffic_test %>%
-  group_by(segment_id, date) %>%
-  dplyr::summarise(bus_count = median(bus_count, na.rm = T),
-                   msg_count = median(msg_count, na.rm = T),
-                   traffic   = median(traffic, na.rm = T))
-Traffic_test3 = Traffic_test %>%
-  select(-bus_count, -msg_count, -traffic) %>%
-  distinct()
-
-Traffic_test4 = left_join(Traffic_test2, Traffic_test3)
-
-haversine_dist = function(lat1, long1, lat2, long2){
-  lat1  = lat1  * 0.0174532925
-  lat2  = lat2  * 0.0174532925
-  long1 = long1 * 0.0174532925
-  long2 = long2 * 0.0174532925
-  return(12742 * asin(sqrt((sin((lat2-lat1)/2)^2 + cos(lat1)* cos(lat2)* (sin((long2-long1)/2)^2)))))
-}
-
-nearest = function(lat, long, locations){
-  distances = pmap(locations, function(latitude, longitude)
-    {haversine_dist(lat, long, latitude, longitude)})
-  return(min(unlist(distances)))
-}
-
-distinct_camera = redlight_data %>% select(latitude, longitude) %>% distinct()
-distinct_segment = Traffic_test %>% select(segment_id, latitude, longitude) %>% distinct()
-
-
-min_distances = pmap(redlight_data[, c("latitude","longitude")],
-                      function(latitude, longitude)
-                        {nearest(latitude, longitude, Traffic[, c("latitude","longitude")])}) %>% 
-                 unlist()
-
-#not done, don't run the code below
-a = left_join(redlight_data, data.frame(min_distances, distinct_camera))
-b = left_join(a, Traffic_test, by = c("min_distances" = "segment_id", "date"))
-
-###############################################################
 
 weather_temp = bind_rows(daily_900, daily_after) %>%
   mutate(time = as.Date(time))
