@@ -449,11 +449,19 @@ shinyApp(
       sidebarPanel(
         
         selectInput("month", label = "Month",
-                    choices = c("January", "February", "March",
-                              "April", "May", "June", "July",
-                              "August", "September", "October",
-                              "November", "December"),
-                    selected = 1),
+                    choices = c("January"   = "1", 
+                                "February"  = "2", 
+                                "March"     = "3",
+                                "April"     = "4",
+                                "May"       = "5",
+                                "June"      = "6",
+                                "July"      = "7",
+                                "August"    = "8",
+                                "September" = "9", 
+                                "October"   = "10",
+                                "November"  = "11",
+                                "December"  = "12"),
+                    selected = "1"),
         
         selectInput("dayofweek", label = "Day of the Week",
                     choices = c("Monday", "Tuesday", "Wednesday",
@@ -465,8 +473,12 @@ shinyApp(
         conditionalPanel(
           "input.options == true",
           selectInput("weather_type", "Weather Type", 
-                      choices = weather_info_daily$icon %>%
-                        levels()),
+                      choices = c("Clear"  = "clear-day",
+                                  "Cloudy" = "cloudy",
+                                  "Fog"    = "fog",
+                                  "Rain"   = "rain", 
+                                  "Snow"   = "snow"),
+                      selected = "cloudy"),
           
           sliderInput("visibility", "Visibility", 
                       min = min(weather_info_daily$visibility),
@@ -545,9 +557,9 @@ shinyApp(
       
       ggplot(p, aes(x=X,y=Y)) + 
         geom_point(aes(colour = log(heat+1))) +
-        scale_color_distiller(name = "Violation", palette = "Spectral") + 
+        scale_color_distiller(name = "Violation", palette = "Spectral") 
         #scale_fill_continuous(breaks = c(1, 2, 3, 4, 5), labels = c(50, 100, 150, 200, 250))
-        theme(legend.position = "None")
+        #theme(legend.position = "None")
       
       
     }) 
