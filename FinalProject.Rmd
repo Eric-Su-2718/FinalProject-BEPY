@@ -11,7 +11,6 @@ output:
 
 ```{r Setup, include=FALSE}
 install.packages("shinycssloaders")
-library(dplyr)
 library(jsonlite)
 #library(janitor)
 library(tidyverse)
@@ -367,10 +366,7 @@ test.gam = gam(violations ~ te(latitude, longitude)+ s(temperatureHigh) + s(mont
 ## Read in shape file and create GGMAP
 Shape file was retrieved from https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Community-Areas-current-/cauq-8yn6 
 ```{r}
-library(dplyr)
 library(sf)
-library(purrr)
-library(ggplot2)
 # library(patchwork)
 
 Chi = st_read("Boundaries - Community Areas (current)/geo_export_2029b708-dae1-4482-ad01-6e4f7381e1f4.shp", quiet = TRUE, stringsAsFactors = FALSE) %>%
@@ -535,6 +531,8 @@ shinyApp(
     observeEvent( input$action, {
       
       df = data_frame(
+        Chi_grid_xy[,1],
+        Chi_grid_xy[,2],
         input$month,
         input$dayofweek,
         input$weather_type,
@@ -544,7 +542,8 @@ shinyApp(
         input$range[1],
         input$range[2]
       )
-      colnames(df) = c("Month", "day_in_week", "icon", "visibility",
+      colnames(df) = c("longitude", "latitude", "Month", "
+                       day_in_week", "icon", "visibility",
                        "uvIndex", "cloudCover", "temperatureLow", 
                        "temperatureHigh")
     
