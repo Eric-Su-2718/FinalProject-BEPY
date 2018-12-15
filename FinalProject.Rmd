@@ -10,6 +10,7 @@ output:
 
 
 ```{r Setup, include=FALSE}
+install.packages("shinycssloaders")
 library(dplyr)
 library(jsonlite)
 #library(janitor)
@@ -372,11 +373,7 @@ weather_info_daily = weather_info_daily %>%
 data_tidy = left_join(redlight_data, weather_info_daily, by = c("date" = "time")) %>%
   mutate(icon = factor(icon),
          precipType = factor(precipType), 
-<<<<<<< HEAD
-         day_in_week = weekdays(date) %>% factor(),
-=======
          day_in_week = weekdays(date) %>% as.factor(),
->>>>>>> 479c4ff705897d34972d62cd7e4b4020243f3202
          Month = month(date))
 
 ```
@@ -405,7 +402,7 @@ library(purrr)
 library(ggplot2)
 # library(patchwork)
 
-Chi = st_read("Boundaries - Community Areas (current)/geo_export_2029b708-dae1-4482-ad01-6e4f7381e1f4.shp", quiet = TRUE, stringsAsFactors = FALSE)
+Chi = st_read("geo_export_2029b708-dae1-4482-ad01-6e4f7381e1f4.shp", quiet = TRUE, stringsAsFactors = FALSE)
 Chi_geom = st_geometry(Chi)
 Chi_bb = st_bbox(Chi)
 
@@ -486,9 +483,11 @@ final = poly_sf %>%
 
 # Shiny App  
 ```{r shiny app}
+
 library(shiny)
 library(purrr)
 library(lubridate)
+library(shinycssloaders)
 
 shinyApp(
   ui = fluidPage(
@@ -496,69 +495,97 @@ shinyApp(
     sidebarLayout(
       sidebarPanel(
         
-        selectInput("month", label = h3("Month Input"),
-                    choices = 1:12,
+        selectInput("month", label = "Month",
+                    choices = c("January", "February", "March",
+                              "April", "May", "June", "July",
+                              "August", "September", "October",
+                              "November", "December"),
                     selected = 1),
         
-        selectInput("dayofweek", label = h3("Day of the Week Input"),
+        selectInput("dayofweek", label = "Day of the Week",
                     choices = c("Monday", "Tuesday", "Wednesday",
                                 "Thursday", "Friday", "Saturday", 
                                 "Sunday"),
                     selected = "Monday"),
+        
+        checkboxInput("options", "Change Weather Info", value = FALSE),
+        conditionalPanel(
+          "input.options == true",
+          selectInput("weather_type", "Weather Type", 
+                      choices = weather_info_daily$icon %>%
+                        levels()),
+          
+          sliderInput("visibility", "Visibility", 
+                      min = min(weather_info_daily$visibility),
+                      max = max(weather_info_daily$visibility),
+                      value = median(weather_info_daily$visibility)),
+          
+          sliderInput("uvIndex", "UV Index",
+                      min = min(weather_info_daily$uvIndex),
+                      max = max(weather_info_daily$uvIndex), 
+                      value = median(weather_info_daily$uvIndex),
+                      step = 1),
+          
+          sliderInput("cloudCover", "Cloud Cover",
+                      min = 0,
+                      max = 1,
+                      value = median(weather_info_daily$cloudCover)),
+          
+          sliderInput("range", "Temperature",
+                      min = min(weather_info_daily$temperatureLow) %>% 
+                        round(),
+                      max = max(weather_info_daily$temperatureHigh) %>% 
+                        round(),
+                      value = c(median(weather_info_daily$temperatureLow) %>%
+                                  round(),
+                                median(weather_info_daily$temperatureHigh) %>% 
+                                  round()))
+          
+          
+        ),
         
         actionButton("action", label = "Get heat map")
         
       ),
       
       mainPanel(
-        uiOutput("links")
+         plotOutput("dist") %>% withSpinner(color = "#0dc5c1")
       )
       
     )
   ),
   
   server = function(input, output, session){
-    
-    state = reactiveValues(
-      observers = list()
-    )
 
-    observeEvent( input$action, {
+   data = observeEvent( input$action, {
       
-        
-      # Destroy existing observers
-      for(i in seq_along(state$observers)) {
-        state$observers[[i]]$destroy()
-      }
-        
-      ui_elems = 
-        
-          map(seq_len(nrow(nyt.headline)),
-            function(i) fluidRow(actionLink(
-              paste0("link", i),
-              paste0(i, ". ", nyt.headline[i, "Headline"])))
-        )
-      
-      output$links = renderUI(fluidPage(ui_elems))
-      
-      # Reset and create new observers for each of our links
-      state$observers = map(
-        seq_len(nrow(nyt.headline)), 
-        function(i) {
-          label = paste0("link",i)
-          observeEvent(
-            input[[label]], 
-            {
-          
-            }, 
-            ignoreInit = TRUE
-          )
-        }
+      df = data_frame(
+        input$month,
+        input$dayofweek,
+        input$weather_type,
+        input$visibility,
+        input$uvIndex,
+        input$cloudCover,
+        input$range[1],
+        input$range[2]
       )
-      
-      
-      
+      colnames(df) = c("Month", "day_in_week", "icon", "visibility",
+                       "uvIndex", "cloudCover", "temperatureLow", 
+                       "temperatureHigh")
+    
     })
+   
+    output$dist = renderPlot({
+      req(input$action)
+      Sys.sleep(5)
+      plot(data()$uvIndex)
+      
+    }) 
+    
+    
+    
+    
+    
   }
 )
 
