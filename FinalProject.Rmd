@@ -36,7 +36,7 @@ make.df = function(list){
     intersection = list$intersection,
     violation_date = list$violation_date,
     violations = list$violations,
-    latitutde = list$latitude,
+    latitude = list$latitude,
     longitude = list$longitude,
     x_coordinate = list$x_coordinate,
     y_coordinate = list$y_coordinate
@@ -367,7 +367,7 @@ weather_info_daily = weather_info_daily %>%
 data_tidy = left_join(redlight_data, weather_info_daily, by = c("date" = "time")) %>%
   mutate(icon = factor(icon),
          precipType = factor(precipType), 
-         day_in_week = weekdays(date),
+         day_in_week = weekdays(date) %>% factor(),
          Month = month(date))
 
 ```
