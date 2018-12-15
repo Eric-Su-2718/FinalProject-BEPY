@@ -11,6 +11,7 @@ output:
 
 ```{r Setup, include=FALSE}
 install.packages("shinycssloaders")
+library(dplyr)
 library(jsonlite)
 #library(janitor)
 library(tidyverse)
@@ -359,19 +360,20 @@ library(mgcv)
 #test.gam = gam(violations ~ te(latitude, longitude)+ s(temperatureHigh), data=data_tidy, family = ziP())
 
 
-test.gam = gam(violations ~ te(latitude, longitude) + s(temperatureHigh) + s(temperatureLow) + Month +day_in_week + s(visibility) + s(uvIndex) + icon, data=data_tidy, family = poisson)
 
 model = gam(violations ~ te(latitude, longitude) + s(temperatureHigh) + 
                   s(temperatureLow) + Month +day_in_week + s(visibility) + 
                   s(uvIndex) + icon, data=data_tidy, family = poisson)
-
 ```
 
 
 ## Read in shape file and create GGMAP
 Shape file was retrieved from https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Community-Areas-current-/cauq-8yn6 
 ```{r}
+library(dplyr)
 library(sf)
+library(purrr)
+library(ggplot2)
 # library(patchwork)
 
 Chi = st_read("Boundaries - Community Areas (current)/geo_export_2029b708-dae1-4482-ad01-6e4f7381e1f4.shp", quiet = TRUE, stringsAsFactors = FALSE) %>%
@@ -395,6 +397,7 @@ Chi_grid_sf = st_multipoint(Chi_grid) %>%
 # Creating the list of coordinates 
 Chi_grid_xy = st_coordinates(Chi_grid_sf) %>% as.data.frame()
 # Creating the Prediction for each data point
+
 get_predictions = function(){
   Pred.df = data_frame(
     longitude = Chi_grid_xy$X,
@@ -531,8 +534,6 @@ shinyApp(
     
       return(df)
     })
-      
-      
     output$dist = renderPlot({
       
       req(input$action)
