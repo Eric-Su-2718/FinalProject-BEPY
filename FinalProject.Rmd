@@ -64,7 +64,7 @@ get.redlight.data = function(date){
 redlight_data = map(json.files, get.redlight.data) %>%
   ldply(.fun = make.df)
 
-save(redlight_data, file = "red_light_test.Rds")
+saveRDS(redlight_data, file = "red_light_test.Rds")
 ```
 
 
@@ -118,7 +118,7 @@ Traffic = Traffic %>%
   inner_join(., Segments, by = c("segment_id" = "segmentid"))
 
 
-save(Traffic, file = "traffic.Rds")
+saveRDS(Traffic, file = "traffic.Rds")
 
 ```
 
@@ -164,7 +164,6 @@ get_weather_daily = function(ls){
   
   preint = daily$precip_intensity
   
-
   df = data_frame(
     time = as.POSIXct(daily$time, 
                         origin = "1970-01-01", tz="America/Chicago"),
@@ -175,7 +174,8 @@ get_weather_daily = function(ls){
     sunset = as.POSIXct(daily$sunsetTime, 
                         origin = "1970-01-01", tz="America/Chicago"),
     precipIntensity = daily$precipIntensity,
-    precipType = ifelse(daily$precipIntensity != 0, daily$precipType, "None"),
+    precipType = ifelse(daily$precipIntensity != 0, 
+                        daily$precipType, "None"),
     visibility = daily$visibility,
     uvIndex = daily$uvIndex,
     cloudCover = daily$cloudCover,
@@ -331,9 +331,11 @@ weather_info_hourly = rbind(hourly_900, hourly_after)
 weather_info_daily = rbind(daily_900, daily_after)
 
 
-save(weather_info_daily, file = "weather_info_daily.Rds")
-save(weather_info_hourly, file = "weather_info_hourly.Rds")
+saveRDS(weather_info_daily, file = "weather_info_daily.Rds")
+saveRDS(weather_info_hourly, file = "weather_info_hourly.Rds")
 
+## weather_info_daily = readRDS("weather_info_daily.Rds")
+## weather_info_hourly = readRDS("hourly_info_daily.Rds")
 ```
 
 
