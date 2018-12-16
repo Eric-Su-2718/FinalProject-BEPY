@@ -444,7 +444,7 @@ library(shinycssloaders)
 
 shinyApp(
   ui = fluidPage(
-    titlePanel(""),
+    titlePanel("Chicago Red Light Violation Heat Map"),
     sidebarLayout(
       sidebarPanel(
         
