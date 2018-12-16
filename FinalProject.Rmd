@@ -23,6 +23,9 @@ library(lubridate)
 # Preparation  
 
 ## Get Red Light and Traffic Data  
+
+As with all the modeling, we start the process by getting the data. Here, red light data is obtained from "https://data.cityofchiago.org/resource/twfh-866z.json?", using get.redlight.data and make.df function we created. Get.redlight.data takes in date and outputs a list of red light data, which is then coverted into a data frame by the make.df function. As for the descriptions for the first.date and last.date, first.date is the date when the red light data was available to users by Chicago site. Last.date is the date we obtained by subtracting 14 days from the date when we started our project - city of Chicago had 14-day delay in uploading red light data.
+
 ```{r Red Lights}
 first.date = as.Date("2014-07-01")
 last.date = as.Date("2018-11-26")
