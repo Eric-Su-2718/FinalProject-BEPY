@@ -10,23 +10,23 @@ Gather Data:
 
 Generate Prediction Dataset
 -	Variables will include:
-o	Daily Traffic
-o	Weather 
-♣	Temperature
-♣	Visibility
-♣	Precipitation
-♣	Accumulation of snow
-o	Intersection
-o	Day of the week
-o	Month
-o	Latitude/Longitude
+   * Daily Traffic
+   * Weather 
+   * Temperature
+   * Visibility
+   * Precipitation
+   * Accumulation of snow
+   * Intersection
+   * Day of the week
+   * Month
+   * Latitude / Longitude
 
 -	Outcome Variable
-o	Red Light Camera Violations
+   * Red Light Camera Violations
 
 -	Objective:
-o	Find intersections without redlight cameras, but with Traffic data
-o	Predict Red Light camera Violations for intersections without red light camera
+   * Find intersections without redlight cameras, but with Traffic data
+   * Predict Red Light camera Violations for intersections without red light camera
 
 Shiny App
 -	User Picks Date in the past and we show actual and predicted red light camera violations for that day
