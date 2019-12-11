@@ -8,8 +8,7 @@ Gather Data:
 -	Darksky weather data
     * (Darksky API) 
 
-Generate Prediction Dataset
-Variables will include:
+Generate Prediction, variables will include:
    * Daily Traffic
    * Weather 
    * Temperature
@@ -21,12 +20,12 @@ Variables will include:
    * Month
    * Latitude / Longitude
 
--	Outcome Variable
+Outcome Variable
    * Red Light Camera Violations
 
--	Objective:
-   * Find intersections without redlight cameras, but with Traffic data
+Objective:
+   * Find intersections without redlight cameras, but with traffic data
    * Predict Red Light camera Violations for intersections without red light camera
 
 Shiny App
--	User Picks Date in the past and we show actual and predicted red light camera violations for that day
+-	User picks date in the past and we show actual and predicted red light camera violations for that day
