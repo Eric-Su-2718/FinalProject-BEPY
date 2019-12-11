@@ -1,3 +1,5 @@
+# STA523 Final Project
+This repo contains the code for my team final project on predicting and visualizing the number of red light camera violations in the Chicago city using R. The code is in the file "FinalProject.Rmd". Steps in our analysis are listed below:
 
 Gather Data:
 -	Traffic Data for the city of Chicago
