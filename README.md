@@ -1,8 +1,10 @@
 
 Gather Data:
 -	Traffic Data for the city of Chicago
+
 o	https://dev.socrata.com/foundry/data.cityofchicago.org/8v9j-bter 
 o	https://data.cityofchicago.org/resource/8v9j-bter.json  
+
 -	Red light camera data 
 o	https://data.cityofchicago.org/Transportation/Red-Light-Camera-Violations/spqx-js37 
 -	Darksky weather data
