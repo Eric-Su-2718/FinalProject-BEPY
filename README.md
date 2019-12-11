@@ -9,7 +9,7 @@ Gather Data:
     * (Darksky API) 
 
 Generate Prediction Dataset
--	Variables will include:
+Variables will include:
    * Daily Traffic
    * Weather 
    * Temperature
