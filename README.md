@@ -4,9 +4,9 @@ Gather Data:
     * https://dev.socrata.com/foundry/data.cityofchicago.org/8v9j-bter 
     * https://data.cityofchicago.org/resource/8v9j-bter.json  
 -	Red light camera data 
-o	https://data.cityofchicago.org/Transportation/Red-Light-Camera-Violations/spqx-js37 
+    * https://data.cityofchicago.org/Transportation/Red-Light-Camera-Violations/spqx-js37 
 -	Darksky weather data
-o	(Darksky API) 
+    * (Darksky API) 
 
 Generate Prediction Dataset
 -	Variables will include:
